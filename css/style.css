@@ -136,3 +136,31 @@ input {
 #report li {
   margin-bottom: 6px;
 }
+/* Improve input grouping */
+.grid > div {
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+/* Editor placeholder look */
+.editor:empty::before {
+  content: "Paste your content here…";
+  color: #999;
+}
+
+/* Preview feels like document */
+.preview {
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+/* Buttons more visible */
+.btn {
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}

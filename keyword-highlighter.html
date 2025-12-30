@@ -2,42 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Keyword Highlighter Tool</title>
+  <title>Keyword, Brand & Location Highlighter</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<div class="container">
-  <h1>Keyword, Brand & Location Highlighter</h1>
-  <p class="subtitle">Paste your content and highlight important terms instantly.</p>
+<div class="page">
+  <header class="header">
+    <h1>Keyword, Brand & Location Highlighter</h1>
+    <p>Paste content, audit usage, and export clean highlighted copy.</p>
+  </header>
 
-  <div class="form-grid">
-    <div>
-      <label>Brand Name</label>
-      <input type="text" id="brand" placeholder="e.g. Blooming Constructions">
+  <section class="card">
+    <div class="grid">
+      <div>
+        <label>Brand Name</label>
+        <input type="text" id="brand" placeholder="Blooming Construction">
+      </div>
+
+      <div>
+        <label>Primary Keywords</label>
+        <input type="text" id="keywords" placeholder="civil construction, builder checklist">
+      </div>
+
+      <div>
+        <label>Location Keywords</label>
+        <input type="text" id="locations" placeholder="Victoria, Melbourne">
+      </div>
     </div>
 
-    <div>
-      <label>Primary Keywords</label>
-      <input type="text" id="keywords" placeholder="comma separated">
+    <label class="editor-label">Content</label>
+    <div id="content" class="editor" contenteditable="true">
+      <p>Paste your content here…</p>
     </div>
 
-    <div>
-      <label>Location Keywords</label>
-      <input type="text" id="locations" placeholder="comma separated">
+    <div class="actions">
+      <button class="btn primary" onclick="highlightText()">Highlight</button>
+      <button class="btn" onclick="downloadWord()">Download Word</button>
     </div>
-  </div>
+  </section>
 
-  <label class="full">Content</label>
-  <textarea id="content" rows="8" placeholder="Paste your content here..."></textarea>
+  <section class="card">
+    <div id="report"></div>
+  </section>
 
-  <div class="buttons">
-    <button onclick="highlightText()">Highlight</button>
-    <button onclick="downloadWord()">Download Word</button>
-  </div>
-
-  <h2>Preview</h2>
-  <div id="output" class="preview"></div>
+  <section class="card">
+    <h3>Preview</h3>
+    <div id="output" class="preview"></div>
+  </section>
 </div>
 
 <script src="js/highlighter.js"></script>

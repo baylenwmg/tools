@@ -3,35 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <title>Keyword Highlighter Tool</title>
-  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<h1>Keyword, Brand & Location Highlighter</h1>
-<p>Paste your content and highlight important terms instantly.</p>
+<div class="container">
+  <h1>Keyword, Brand & Location Highlighter</h1>
+  <p class="subtitle">Paste your content and highlight important terms instantly.</p>
 
-<div class="tool-box">
+  <div class="form-grid">
+    <div>
+      <label>Brand Name</label>
+      <input type="text" id="brand" placeholder="e.g. Blooming Constructions">
+    </div>
 
-  <label>Brand Name</label>
-  <input type="text" id="brand" placeholder="e.g. Blooming Construction">
+    <div>
+      <label>Primary Keywords</label>
+      <input type="text" id="keywords" placeholder="comma separated">
+    </div>
 
-  <label>Primary Keywords (comma separated)</label>
-  <input type="text" id="keywords" placeholder="e.g. civil construction, builders">
+    <div>
+      <label>Location Keywords</label>
+      <input type="text" id="locations" placeholder="comma separated">
+    </div>
+  </div>
 
-  <label>Location Keywords (comma separated)</label>
-  <input type="text" id="locations" placeholder="e.g. Victoria, Melbourne">
+  <label class="full">Content</label>
+  <textarea id="content" rows="8" placeholder="Paste your content here..."></textarea>
 
-  <label>Content</label>
-  <textarea id="content" rows="10" placeholder="Paste your content here..."></textarea>
+  <div class="buttons">
+    <button onclick="highlightText()">Highlight</button>
+    <button onclick="downloadWord()">Download Word</button>
+  </div>
 
-  <button onclick="highlightText()">Highlight</button>
-  <button onclick="downloadWord()">Download Word</button>
-
+  <h2>Preview</h2>
+  <div id="output" class="preview"></div>
 </div>
 
-<h2>Preview</h2>
-<div id="output" class="preview"></div>
-
-<script src="../js/highlighter.js"></script>
+<script src="js/highlighter.js"></script>
 </body>
 </html>

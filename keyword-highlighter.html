@@ -1,1 +1,37 @@
-<h1>Keyword Highlighter Tool</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Keyword Highlighter Tool</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<h1>Keyword, Brand & Location Highlighter</h1>
+<p>Paste your content and highlight important terms instantly.</p>
+
+<div class="tool-box">
+
+  <label>Brand Name</label>
+  <input type="text" id="brand" placeholder="e.g. Blooming Construction">
+
+  <label>Primary Keywords (comma separated)</label>
+  <input type="text" id="keywords" placeholder="e.g. civil construction, builders">
+
+  <label>Location Keywords (comma separated)</label>
+  <input type="text" id="locations" placeholder="e.g. Victoria, Melbourne">
+
+  <label>Content</label>
+  <textarea id="content" rows="10" placeholder="Paste your content here..."></textarea>
+
+  <button onclick="highlightText()">Highlight</button>
+  <button onclick="downloadWord()">Download Word</button>
+
+</div>
+
+<h2>Preview</h2>
+<div id="output" class="preview"></div>
+
+<script src="../js/highlighter.js"></script>
+</body>
+</html>

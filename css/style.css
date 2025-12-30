@@ -1,0 +1,49 @@
+.tool-box {
+  max-width: 800px;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.tool-box label {
+  display: block;
+  margin-top: 15px;
+  font-weight: bold;
+}
+
+.tool-box input,
+.tool-box textarea {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+}
+
+button {
+  margin-top: 15px;
+  padding: 10px 15px;
+  cursor: pointer;
+}
+
+.preview {
+  background: #fff;
+  padding: 15px;
+  border-radius: 6px;
+  margin-top: 10px;
+  white-space: pre-wrap;
+}
+
+/* Highlight colours */
+.brand {
+  background: #cce5ff;
+  padding: 2px 4px;
+}
+
+.keyword {
+  background: #fff3cd;
+  padding: 2px 4px;
+}
+
+.location {
+  background: #d4edda;
+  padding: 2px 4px;
+}

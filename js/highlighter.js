@@ -6,23 +6,14 @@ function parseList(input) {
   )];
 }
 
-function buildRegex(word) {
-  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(escaped, "gi");
-}
-
 function getWordCount(text) {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-/* 🔥 DOM-SAFE HIGHLIGHTING */
 function highlightText() {
-  document.getElementById("report").innerHTML = "";
-  document.getElementById("output").innerHTML = "";
-
-  const brands = parseList(document.getElementById("brand").value);
-  const keywords = parseList(document.getElementById("keywords").value);
-  const locations = parseList(document.getElementById("locations").value);
+  const brandList = parseList(document.getElementById("brand").value);
+  const keywordList = parseList(document.getElementById("keywords").value);
+  const locationList = parseList(document.getElementById("locations").value);
 
   const editor = document.getElementById("content");
   const clone = editor.cloneNode(true);
@@ -31,35 +22,50 @@ function highlightText() {
   const wordCount = getWordCount(textOnly);
 
   const stats = {
-    brand: processGroup(clone, brands, "brand"),
-    keyword: processGroup(clone, keywords, "keyword"),
-    location: processGroup(clone, locations, "location")
+    brand: highlightGroup(clone, brandList, "brand"),
+    keyword: highlightGroup(clone, keywordList, "keyword"),
+    location: highlightGroup(clone, locationList, "location")
   };
 
   document.getElementById("output").innerHTML = clone.innerHTML;
-
   renderReport(wordCount, stats);
 }
 
-function processGroup(root, list, className) {
+/* ✅ EXACT WORD MATCH, DOM SAFE */
+function highlightGroup(root, list, className) {
   let total = 0;
   const used = [];
   const unused = [];
 
   list.forEach(term => {
-    const regex = buildRegex(term);
     let found = false;
+    const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, "gi");
 
-    walkTextNodes(root, node => {
-      if (regex.test(node.nodeValue)) {
+    walkTextNodes(root, textNode => {
+      const parent = textNode.parentNode;
+      const text = textNode.nodeValue;
+
+      if (!regex.test(text)) return;
+
+      const frag = document.createDocumentFragment();
+      let lastIndex = 0;
+
+      text.replace(regex, (match, index) => {
         found = true;
+        total++;
+
+        frag.appendChild(document.createTextNode(text.slice(lastIndex, index)));
+
         const span = document.createElement("span");
         span.className = className;
-        span.textContent = node.nodeValue;
+        span.textContent = match;
+        frag.appendChild(span);
 
-        node.parentNode.replaceChild(span, node);
-        total++;
-      }
+        lastIndex = index + match.length;
+      });
+
+      frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+      parent.replaceChild(frag, textNode);
     });
 
     found ? used.push(term) : unused.push(term);
@@ -76,25 +82,30 @@ function walkTextNodes(node, callback) {
   }
 }
 
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function renderReport(wordCount, stats) {
   const report = `
-    <h3>Summary</h3>
-    <ul>
-      <li><b>Word Count:</b> ${wordCount}</li>
-      <li><b>Brand Usage:</b> ${stats.brand.total} ${stats.brand.total > 8 ? "⚠ Overused" : "✓ OK"}</li>
-      <li><b>Keywords Used:</b> ${stats.keyword.used.length} / ${stats.keyword.used.length + stats.keyword.unused.length}</li>
-      <li><b>Locations Used:</b> ${stats.location.used.length} / ${stats.location.used.length + stats.location.unused.length}</li>
-    </ul>
+    <div class="summary-card">
+      <h3>Summary</h3>
+      <ul>
+        <li><b>Word Count:</b> ${wordCount}</li>
+        <li><b>Brand Usage:</b> ${stats.brand.total} ${stats.brand.total > 8 ? "⚠ Overused" : "✓ OK"}</li>
+        <li><b>Keywords Used:</b> ${stats.keyword.used.length} / ${stats.keyword.used.length + stats.keyword.unused.length}</li>
+        <li><b>Locations Used:</b> ${stats.location.used.length} / ${stats.location.used.length + stats.location.unused.length}</li>
+      </ul>
 
-    <h3>Issues</h3>
-    <ul>
-      ${stats.brand.unused.length ? `<li>Unused Brands: ${stats.brand.unused.join(", ")}</li>` : ""}
-      ${stats.keyword.unused.length ? `<li>Unused Keywords: ${stats.keyword.unused.join(", ")}</li>` : ""}
-      ${stats.location.unused.length ? `<li>Missing Locations: ${stats.location.unused.join(", ")}</li>` : ""}
-      ${stats.brand.total > 8 ? `<li>Brand may be overused</li>` : ""}
-      ${(!stats.brand.unused.length && !stats.keyword.unused.length && !stats.location.unused.length && stats.brand.total <= 8)
-        ? "<li>No critical issues found ✓</li>" : ""}
-    </ul>
+      <h3>Issues</h3>
+      <ul>
+        ${stats.brand.unused.length ? `<li>Unused Brands: ${stats.brand.unused.join(", ")}</li>` : ""}
+        ${stats.keyword.unused.length ? `<li>Unused Keywords: ${stats.keyword.unused.join(", ")}</li>` : ""}
+        ${stats.location.unused.length ? `<li>Missing Locations: ${stats.location.unused.join(", ")}</li>` : ""}
+        ${(!stats.brand.unused.length && !stats.keyword.unused.length && !stats.location.unused.length && stats.brand.total <= 8)
+          ? "<li>No critical issues found ✓</li>" : ""}
+      </ul>
+    </div>
   `;
 
   document.getElementById("report").innerHTML = report;
@@ -104,7 +115,7 @@ function downloadWord() {
   const content = document.getElementById("output").innerHTML;
 
   if (!content) {
-    alert("Please run the highlighter first.");
+    alert("Please highlight content first.");
     return;
   }
 

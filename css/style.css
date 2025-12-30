@@ -75,3 +75,10 @@ button {
   background: #d4edda;
   padding: 2px 4px;
 }
+ul {
+  padding-left: 18px;
+}
+
+li {
+  margin-bottom: 6px;
+}

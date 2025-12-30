@@ -164,3 +164,14 @@ input {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
+.sticky-summary {
+  position: sticky;
+  top: 20px;
+}
+
+.summary-card {
+  background: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #111827;
+}

@@ -8,48 +8,61 @@
 <body>
 
 <div class="page">
+
   <header class="header">
     <h1>Keyword, Brand & Location Highlighter</h1>
-    <p>Paste content, audit usage, and export clean highlighted copy.</p>
+    <p class="subtitle">
+      Internal content quality tool for validating brand, keyword, and location signals.
+    </p>
   </header>
 
+  <!-- STEP 1 -->
   <section class="card">
-    <div class="grid">
+    <div class="step-label">Step 1 · Define Signals</div>
+
+    <div class="grid-3">
       <div>
-        <label>Brand Name</label>
-        <input type="text" id="brand" placeholder="Blooming Construction">
+        <label>Brand Names</label>
+        <textarea id="brand" placeholder="Paste one brand per line"></textarea>
       </div>
 
       <div>
         <label>Primary Keywords</label>
-        <input type="text" id="keywords" placeholder="civil construction, builder checklist">
+        <textarea id="keywords" placeholder="Paste keywords (one per line)"></textarea>
       </div>
 
       <div>
         <label>Location Keywords</label>
-        <input type="text" id="locations" placeholder="Victoria, Melbourne">
+        <textarea id="locations" placeholder="Paste locations (one per line)"></textarea>
       </div>
     </div>
+  </section>
 
-    <label class="editor-label">Content</label>
+  <!-- STEP 2 -->
+  <section class="card">
+    <div class="step-label">Step 2 · Paste Content</div>
+
     <div id="content" class="editor" contenteditable="true">
       <p>Paste your content here…</p>
     </div>
 
     <div class="actions">
-      <button class="btn primary" onclick="highlightText()">Highlight</button>
-      <button class="btn" onclick="downloadWord()">Download Word</button>
+      <button class="btn primary" onclick="highlightText()">Run Highlight Audit</button>
+      <button class="btn" onclick="downloadWord()">Download Highlighted Word</button>
     </div>
   </section>
 
+  <!-- STEP 3 -->
   <section class="card">
+    <div class="step-label">Step 3 · Review Highlighted Content</div>
+    <div id="output" class="preview"></div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section class="card sticky-summary">
     <div id="report"></div>
   </section>
 
-  <section class="card">
-    <h3>Preview</h3>
-    <div id="output" class="preview"></div>
-  </section>
 </div>
 
 <script src="js/highlighter.js"></script>

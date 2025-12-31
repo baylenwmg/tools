@@ -43,9 +43,12 @@ function highlightGroup(root, list, className) {
     const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, "gi");
     let found = false;
 
-    walkTextNodes(root, node => {
-      const text = node.nodeValue;
-      if (!regex.test(text)) return;
+walkTextNodes(root, node => {
+  // 🚫 Do NOT apply keyword/location inside brand
+  if (className !== "brand" && isInsideBrand(node)) return;
+
+  const text = node.nodeValue;
+  if (!regex.test(text)) return;
 
       const frag = document.createDocumentFragment();
       let lastIndex = 0;
@@ -122,4 +125,14 @@ function downloadWord() {
   a.href = URL.createObjectURL(blob);
   a.download = "highlighted-content.doc";
   a.click();
+}
+function isInsideBrand(node) {
+  let current = node.parentNode;
+  while (current) {
+    if (current.classList && current.classList.contains("brand")) {
+      return true;
+    }
+    current = current.parentNode;
+  }
+  return false;
 }

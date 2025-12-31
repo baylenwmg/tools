@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Royal Wedding Invitation | Nick & John</title>
-    <link href="https://fonts.googleapis.com/css2?family=Karma:wght@300;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+    <title>Royal Rajputana Invitation | Nick & John</title>
+    <link href="https://fonts.googleapis.com/css2?family=Karma:wght@400;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --royal-maroon: #800000;
+            --royal-maroon: #630101;
             --gold: #d4af37;
             --cream: #fffdf5;
         }
@@ -20,198 +20,146 @@
             overflow-x: hidden;
         }
 
-        /* Initial Guest Entry Screen */
+        /* Entry Screen */
         #guest-entry {
             position: fixed;
             inset: 0;
-            background: var(--royal-maroon);
+            background: url('https://www.transparenttextures.com/patterns/paper-fibers.png'), var(--royal-maroon);
             z-index: 1000;
             display: flex;
-            flex-direction: center;
             justify-content: center;
             align-items: center;
             text-align: center;
-            transition: transform 1s cubic-bezier(0.7, 0, 0.3, 1);
+            transition: all 1.2s cubic-bezier(0.8, 0, 0.2, 1);
         }
 
         .entry-card {
             background: var(--cream);
-            padding: 3rem;
-            border: 5px double var(--gold);
-            border-radius: 20px;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-            width: 90%;
+            padding: 2.5rem;
+            border: 4px double var(--gold);
+            border-radius: 15px;
+            width: 85%;
             max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
         }
 
         input {
-            width: 80%;
+            width: 100%;
             padding: 12px;
-            margin: 20px 0;
-            border: 1px solid var(--gold);
-            border-radius: 5px;
-            font-size: 1.1rem;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
             text-align: center;
+            font-size: 1rem;
         }
 
         .royal-btn {
             background: var(--royal-maroon);
             color: var(--gold);
-            border: 1px solid var(--gold);
-            padding: 10px 30px;
+            border: 2px solid var(--gold);
+            padding: 12px 25px;
             cursor: pointer;
+            width: 100%;
             font-family: 'Playfair Display', serif;
-            letter-spacing: 2px;
-            transition: 0.3s;
+            font-weight: bold;
+            margin-top: 15px;
+            border-radius: 8px;
         }
 
-        .royal-btn:hover {
-            background: var(--gold);
-            color: white;
-        }
-
-        /* Main Invitation Content */
+        /* Invitation UI */
         #main-invite {
             background: var(--cream);
             width: 100%;
-            max-width: 800px;
+            max-width: 600px;
             margin: 0 auto;
             min-height: 100vh;
-            border-left: 15px solid var(--gold);
-            border-right: 15px solid var(--gold);
-            box-sizing: border-box;
-            padding: 50px 20px;
+            padding: 40px 20px;
             position: relative;
             text-align: center;
-            box-shadow: 0 0 100px rgba(0,0,0,0.8);
+            border-left: 10px solid var(--gold);
+            border-right: 10px solid var(--gold);
         }
 
-        .header-img { width: 150px; margin-bottom: 20px; opacity: 0.8; }
-        
-        .guest-welcome {
-            font-size: 1.5rem;
-            color: #b8860b;
-            margin-bottom: 10px;
-        }
+        .names { font-family: 'Playfair Display', serif; font-size: 3.5rem; color: var(--royal-maroon); margin: 15px 0; }
+        .divider { width: 80%; height: 1px; background: var(--gold); margin: 25px auto; }
 
-        h1 { font-family: 'Playfair Display', serif; font-size: 3rem; margin: 10px 0; }
-        .names { font-size: 4rem; color: var(--royal-maroon); margin: 20px 0; }
-        
-        .guj-text { font-size: 1.2rem; line-height: 1.8; color: #333; }
-        
-        .divider { width: 60%; height: 2px; background: var(--gold); margin: 30px auto; position: relative; }
-        .divider::after { content: '◈'; position: absolute; top: -12px; left: 48%; background: var(--cream); padding: 0 10px; color: var(--gold); }
-
-        .details-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+        .whatsapp-share-btn {
+            background: #25D366;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
             margin-top: 40px;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
         }
 
-        .event-box {
-            border: 1px solid var(--gold);
-            padding: 15px;
-            background: rgba(212, 175, 55, 0.05);
-        }
-
-        .heart-beat { animation: pulse 2s infinite; color: red; font-size: 2rem; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
-
-        #ganesh-mantra { font-weight: bold; color: var(--royal-maroon); font-size: 1.1rem; }
+        .hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
     </style>
 </head>
 <body>
 
     <div id="guest-entry">
         <div class="entry-card">
-            <h2 style="color:var(--royal-maroon)">પધારો સાહેબ / પધારો દેવી</h2>
-            <p>તમારું શુભ નામ લખો:</p>
-            <input type="text" id="nameInput" placeholder="અહીં તમારું નામ લખો...">
-            <br>
-            <button class="royal-btn" onclick="revealInvite()">આમંત્રણ ખોલો</button>
+            <h2 style="margin-top:0">પધારો અતિથિ દેવો ભવ:</h2>
+            <p>તમારું નામ અને વોટ્સએપ નંબર લખો:</p>
+            <input type="text" id="nameInput" placeholder="તમારું નામ">
+            <input type="tel" id="phoneInput" placeholder="વોટ્સએપ નંબર (દા.ત. 9876543210)">
+            <button class="royal-btn" onclick="openInvitation()">આમંત્રણ જુઓ</button>
         </div>
     </div>
 
     <div id="main-invite">
-        <p id="ganesh-mantra">॥ શ્રી ગણેશાય નમઃ ॥</p>
+        <p>॥ શ્રી ગણેશાય નમઃ ॥</p>
         <div class="divider"></div>
         
-        <p class="guest-welcome">સ્નેહી શ્રી <span id="displayName" style="font-weight:bold; text-decoration: underline;">અતિથિ</span>,</p>
+        <p style="font-size: 1.4rem;">સાદર આમંત્રણ,</p>
+        <h3 id="welcomeGuest" style="color:#b8860b">શ્રી અતિથિ</h3>
         
-        <p class="guj-text">
-            પરમ કૃપાળુ પરમાત્માની અસીમ કૃપાથી, અમારા આંગણે રૂડો અવસર આવ્યો છે.<br>
-            અમારા પુત્ર/પુત્રી ના શુભ લગ્ન પ્રસંગે આપને સહપરિવાર પધારવા ભાવભીનું આમંત્રણ છે.
+        <p style="line-height:1.6">અમારા પરિવારના રૂડા અવસરમાં આપનું હાર્દિક સ્વાગત છે.</p>
+        
+        <div class="names">Nick <br>&<br> John</div>
+        
+        <p><b>તારીખ:</b> ૨૬ અને ૨૭ ફેબ્રુઆરી, ૨૦૨૬</p>
+        <p><b>સ્થળ:</b> રાજપૂતી ગઢ, વડોદરા, ગુજરાત.</p>
+
+        <div class="divider"></div>
+
+        <a id="whatsappLink" href="#" target="_blank" class="whatsapp-share-btn">
+            <span>વોટ્સએપ પર સેવ કરો</span>
+        </a>
+        
+        <p style="font-size: 0.8rem; margin-top: 20px; color: #666;">
+            (આ બટન દબાવવાથી તમને આ કાર્ડ વોટ્સએપ પર મળી જશે)
         </p>
-
-        <div class="names">Nick <span style="font-size: 1.5rem; vertical-align: middle;">સંગ</span> John</div>
-
-        <div class="divider"></div>
-
-        <div class="details-grid">
-            <div class="event-box">
-                <h3 style="color:var(--gold)">મેંદી રસમ</h3>
-                <p>ફેબ્રુઆરી ૨૬, ૨૦૨૬<br>સાંજે ૪:૦૦ કલાકે</p>
-            </div>
-            <div class="event-box">
-                <h3 style="color:var(--gold)">જાન પ્રસ્થાન</h3>
-                <p>ફેબ્રુઆરી ૨૭, ૨૦૨૬<br>સવારે ૯:૦૦ કલાકે</p>
-            </div>
-        </div>
-
-        <div style="margin-top: 50px;">
-            <p class="guj-text" style="font-style: italic;">
-                "રાજપૂતી શાન અને પરંપરા મુજબ આપની હાજરી અનિવાર્ય છે."
-            </p>
-            <div class="heart-beat">❤</div>
-            <p>લિ. <b>નિક અને જોન ના પરિવાર</b></p>
-        </div>
-
-        <canvas id="petals" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></canvas>
     </div>
 
     <script>
-        function revealInvite() {
-            const name = document.getElementById('nameInput').value;
-            if(name.trim() === "") {
-                alert("કૃપા કરીને તમારું નામ લખો");
+        function openInvitation() {
+            const name = document.getElementById('nameInput').value.trim();
+            const phone = document.getElementById('phoneInput').value.trim();
+
+            if (!name || !phone) {
+                alert("મહેરબાની કરીને નામ અને નંબર બંને લખો.");
                 return;
             }
-            document.getElementById('displayName').innerText = name;
-            document.getElementById('guest-entry').style.transform = "translateY(-100%)";
-            startPetals();
-        }
 
-        // Simple Rose Petal Animation
-        function startPetals() {
-            const canvas = document.getElementById('petals');
-            const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            // Update UI
+            document.getElementById('welcomeGuest').innerText = "શ્રી " + name;
+            
+            // Generate WhatsApp Link
+            // It sends the message to the number the guest just typed!
+            const message = `નમસ્તે ${name}, %0A%0Aતમને નિક અને જોન ના લગ્નનું ખાસ આમંત્રણ છે. %0A%0Aતારીખ: 26-27 ફેબ્રુઆરી, 2026 %0Aસ્થળ: વડોદરા %0A%0Aઅમે તમારી રાહ જોશું!`;
+            const waLink = `https://wa.me/91${phone}?text=${message}`;
+            
+            document.getElementById('whatsappLink').href = waLink;
 
-            const petalArr = [];
-            for(let i=0; i<30; i++) {
-                petalArr.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    s: Math.random() * 5 + 2,
-                    o: Math.random() * 0.5 + 0.5
-                });
-            }
-
-            function draw() {
-                ctx.clearRect(0,0,canvas.width, canvas.height);
-                ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
-                petalArr.forEach(p => {
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.s, 0, Math.PI*2);
-                    ctx.fill();
-                    p.y += 1;
-                    if(p.y > canvas.height) p.y = -10;
-                });
-                requestAnimationFrame(draw);
-            }
-            draw();
+            // Transition
+            document.getElementById('guest-entry').classList.add('hidden');
         }
     </script>
 </body>

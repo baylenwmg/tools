@@ -1,6 +1,15 @@
+/***********************
+ * GLOBAL STATE
+ ***********************/
+let auditHasRun = false;
+
+/***********************
+ * HELPERS
+ ***********************/
 function parseLines(input) {
   return [...new Set(
-    input.split(/\n+/)
+    input
+      .split(/\n+/)
       .map(v => v.trim())
       .filter(Boolean)
   )];
@@ -10,53 +19,62 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function getWordCount(text) {
-  return text.trim().split(/\s+/).filter(Boolean).length;
+function walkTextNodes(node, cb) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    cb(node);
+  } else {
+    node.childNodes.forEach(n => walkTextNodes(n, cb));
+  }
 }
 
-function highlightText() {
-  const editor = document.getElementById("content");
-  const clone = editor.cloneNode(true);
-
-  const brands = parseLines(document.getElementById("brand").value);
-  const keywords = parseLines(document.getElementById("keywords").value);
-  const locations = parseLines(document.getElementById("locations").value);
-
-  const wordCount = getWordCount(editor.innerText);
-
-  const stats = {
-    brand: highlightGroup(clone, brands, "brand"),
-    keyword: highlightGroup(clone, keywords, "keyword"),
-    location: highlightGroup(clone, locations, "location")
-  };
-
-  document.getElementById("output").innerHTML = clone.innerHTML;
-  renderSummary(wordCount, stats);
+/***********************
+ * CLEAR OLD HIGHLIGHTS
+ ***********************/
+function clearExistingHighlights(root) {
+  const spans = root.querySelectorAll(".hl-brand, .hl-keyword, .hl-location");
+  spans.forEach(span => {
+    span.replaceWith(document.createTextNode(span.textContent));
+  });
 }
 
+/***********************
+ * BRAND PRIORITY CHECK
+ ***********************/
+function isInsideBrand(node) {
+  let current = node.parentNode;
+  while (current) {
+    if (current.classList && current.classList.contains("hl-brand")) {
+      return true;
+    }
+    current = current.parentNode;
+  }
+  return false;
+}
+
+/***********************
+ * HIGHLIGHT GROUP
+ ***********************/
 function highlightGroup(root, list, className) {
   let total = 0;
-  const used = [];
-  const unused = [];
 
   list.forEach(term => {
     const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, "gi");
-    let found = false;
 
-walkTextNodes(root, node => {
-  // 🚫 Do NOT apply keyword/location inside brand
-  if (className !== "brand" && isInsideBrand(node)) return;
+    walkTextNodes(root, textNode => {
+      if (className !== "hl-brand" && isInsideBrand(textNode)) return;
 
-  const text = node.nodeValue;
-  if (!regex.test(text)) return;
+      const text = textNode.nodeValue;
+      if (!regex.test(text)) return;
 
       const frag = document.createDocumentFragment();
       let lastIndex = 0;
 
       text.replace(regex, (match, index) => {
-        found = true;
         total++;
-        frag.appendChild(document.createTextNode(text.slice(lastIndex, index)));
+
+        frag.appendChild(
+          document.createTextNode(text.slice(lastIndex, index))
+        );
 
         const span = document.createElement("span");
         span.className = className;
@@ -66,73 +84,94 @@ walkTextNodes(root, node => {
         lastIndex = index + match.length;
       });
 
-      frag.appendChild(document.createTextNode(text.slice(lastIndex)));
-      node.parentNode.replaceChild(frag, node);
-    });
+      frag.appendChild(
+        document.createTextNode(text.slice(lastIndex))
+      );
 
-    found ? used.push(term) : unused.push(term);
+      textNode.parentNode.replaceChild(frag, textNode);
+    });
   });
 
-  return { total, used, unused };
+  return { total };
 }
 
-function walkTextNodes(node, cb) {
-  if (node.nodeType === Node.TEXT_NODE) cb(node);
-  else node.childNodes.forEach(n => walkTextNodes(n, cb));
+/***********************
+ * MAIN ACTION
+ ***********************/
+function highlightText() {
+  const brandVal = document.getElementById("brand").value.trim();
+  const keywordVal = document.getElementById("keywords").value.trim();
+  const contentEl = document.getElementById("content");
+  const contentText = contentEl.innerText.trim();
+
+  // ❌ VALIDATION
+  if (!brandVal || !keywordVal || !contentText) {
+    alert("Please add Brand Names, Keywords, and Content before running the audit.");
+    return;
+  }
+
+  auditHasRun = false;
+
+  const clone = contentEl.cloneNode(true);
+  clearExistingHighlights(clone);
+
+  const brands = parseLines(brandVal);
+  const keywords = parseLines(keywordVal);
+  const locations = parseLines(
+    document.getElementById("locations").value.trim()
+  );
+
+  const brandStats = highlightGroup(clone, brands, "hl-brand");
+  const keywordStats = highlightGroup(clone, keywords, "hl-keyword");
+  const locationStats = highlightGroup(clone, locations, "hl-location");
+
+  // Render back
+  contentEl.innerHTML = clone.innerHTML;
+
+  // Update floating summary
+  document.getElementById("count-brand").textContent = brandStats.total;
+  document.getElementById("count-keyword").textContent = keywordStats.total;
+  document.getElementById("count-location").textContent = locationStats.total;
+
+  auditHasRun = true;
 }
 
-function renderSummary(wordCount, stats) {
-  const report = `
-    <div class="summary-card">
-      <h3>Content Signal Assessment</h3>
-      <ul>
-        <li><b>Word Count:</b> ${wordCount}</li>
-        <li><b>Brand Visibility:</b> ${stats.brand.total ? "Balanced" : "Missing"}</li>
-        <li><b>Keyword Coverage:</b> ${stats.keyword.used.length === stats.keyword.used.length + stats.keyword.unused.length ? "Complete" : "Partial"}</li>
-        <li><b>Location Signals:</b> ${stats.location.used.length ? "Present" : "Missing"}</li>
-      </ul>
-
-      <h4>Action Notes</h4>
-      <ul>
-        ${stats.brand.unused.length ? `<li>Unused brands: ${stats.brand.unused.join(", ")}</li>` : ""}
-        ${stats.keyword.unused.length ? `<li>Unused keywords: ${stats.keyword.unused.join(", ")}</li>` : ""}
-        ${stats.location.unused.length ? `<li>Missing locations: ${stats.location.unused.join(", ")}</li>` : ""}
-        ${(!stats.brand.unused.length && !stats.keyword.unused.length && !stats.location.unused.length)
-          ? "<li>No corrective actions required</li>" : ""}
-      </ul>
-    </div>
-  `;
-
-  document.getElementById("report").innerHTML = report;
-}
-
+/***********************
+ * EXPORT WORD
+ ***********************/
 function downloadWord() {
-  const content = document.getElementById("output").innerHTML;
-  if (!content) return alert("Run the audit first.");
+  if (!auditHasRun) {
+    alert("Please run the audit before exporting the Word file.");
+    return;
+  }
+
+  const content = document.getElementById("content").innerHTML.trim();
+
+  if (!content) {
+    alert("No highlighted content found to export.");
+    return;
+  }
 
   const html = `
-    <html><head><meta charset="utf-8">
-    <style>
-      .brand{background:#c92d9a;color:#fff}
-      .keyword{background:#ebe538}
-      .location{background:#15f5f7}
-    </style>
-    </head><body>${content}</body></html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          .hl-brand { background:#fbbf24; color:#000; }
+          .hl-keyword { background:#60a5fa; color:#fff; }
+          .hl-location { background:#34d399; color:#000; }
+        </style>
+      </head>
+      <body>${content}</body>
+    </html>
   `;
 
-  const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  const blob = new Blob(['\ufeff', html], {
+    type: "application/msword"
+  });
+
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "highlighted-content.doc";
+  a.download = "signal-highlighted-content.doc";
   a.click();
-}
-function isInsideBrand(node) {
-  let current = node.parentNode;
-  while (current) {
-    if (current.classList && current.classList.contains("brand")) {
-      return true;
-    }
-    current = current.parentNode;
-  }
-  return false;
 }

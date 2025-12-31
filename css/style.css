@@ -5,38 +5,42 @@
 body {
   margin: 0;
   background: #f4f6f8;
-  font-family: Inter, system-ui, -apple-system, Arial, sans-serif;
+  font-family: Inter, system-ui, Arial, sans-serif;
   color: #111;
 }
 
 .page {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 40px auto;
-  padding: 0 20px;
-}
-
-.header {
-  margin-bottom: 30px;
+  padding: 0 24px;
 }
 
 .header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 30px;
 }
 
-.header p {
-  color: #555;
+.subtitle {
   margin-top: 6px;
+  color: #555;
 }
 
 .card {
   background: #fff;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 24px;
   margin-bottom: 24px;
 }
 
-.grid {
+.step-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.grid-3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
@@ -47,43 +51,40 @@ label {
   font-size: 14px;
 }
 
-input {
+textarea {
   width: 100%;
+  min-height: 120px;
   margin-top: 6px;
   padding: 10px;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid #ccc;
-  font-size: 14px;
-}
-
-.editor-label {
-  margin-top: 20px;
-  display: block;
+  font-size: 13px;
+  resize: vertical;
 }
 
 .editor {
-  margin-top: 8px;
-  min-height: 260px;
+  min-height: 300px;
   border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 14px;
+  border-radius: 10px;
+  padding: 18px;
   background: #fff;
+  line-height: 1.7;
 }
 
 .editor:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: #111827;
 }
 
 .actions {
-  margin-top: 20px;
+  margin-top: 16px;
   display: flex;
   gap: 12px;
 }
 
 .btn {
-  padding: 10px 16px;
-  border-radius: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
   border: 1px solid #ccc;
   background: #fff;
   cursor: pointer;
@@ -96,74 +97,19 @@ input {
   border-color: #111827;
 }
 
-.btn.primary:hover {
-  background: #1f2937;
-}
-
 .preview {
   background: #f9fafb;
-  padding: 16px;
-  border-radius: 8px;
-  white-space: normal;
-}
-
-/* === HIGHLIGHT COLOURS (AGENCY STANDARD) === */
-.brand {
-  background: #c92d9a;
-  color: #fff;
-  padding: 2px 4px;
-}
-
-.keyword {
-  background: #ebe538;
-  padding: 2px 4px;
-}
-
-.location {
-  background: #15f5f7;
-  padding: 2px 4px;
-}
-
-/* Report styling */
-#report h3 {
-  margin-top: 0;
-}
-
-#report ul {
-  padding-left: 18px;
-}
-
-#report li {
-  margin-bottom: 6px;
-}
-/* Improve input grouping */
-.grid > div {
-  background: #f9fafb;
-  padding: 12px;
-  border-radius: 8px;
-}
-
-/* Editor placeholder look */
-.editor:empty::before {
-  content: "Paste your content here…";
-  color: #999;
-}
-
-/* Preview feels like document */
-.preview {
+  padding: 20px;
+  border-radius: 10px;
   line-height: 1.7;
-  font-size: 15px;
 }
 
-/* Buttons more visible */
-.btn {
-  transition: all 0.2s ease;
-}
+/* Highlight colours – agency standard */
+.brand { background:#c92d9a; color:#fff; padding:2px 4px; }
+.keyword { background:#ebe538; padding:2px 4px; }
+.location { background:#15f5f7; padding:2px 4px; }
 
-.btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
+/* Sticky summary */
 .sticky-summary {
   position: sticky;
   top: 20px;
@@ -171,7 +117,11 @@ input {
 
 .summary-card {
   background: #f9fafb;
-  padding: 16px;
-  border-radius: 8px;
+  padding: 20px;
+  border-radius: 10px;
   border-left: 4px solid #111827;
+}
+
+.summary-card ul {
+  padding-left: 18px;
 }

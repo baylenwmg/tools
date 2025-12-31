@@ -3,276 +3,239 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 | Infinite Possibilities</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>2026 | A New Chapter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;1,400&family=Inter:wght@200;400&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
     <style>
         :root {
-            --gold: #ffcf40;
-            --deep-blue: #020617;
-            --glass: rgba(255, 255, 255, 0.05);
+            --bg: #030712;
+            --accent: #fef3c7; /* Soft Cream Gold */
+            --text: #f9fafb;
         }
 
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--deep-blue);
-            color: white;
-            font-family: 'Poppins', sans-serif;
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
             overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
-        /* Ambient Background */
-        #bg-canvas {
+        /* The Aurora Background */
+        #canvas-bg {
             position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 1;
+            top: 0; left: 0;
+            filter: blur(80px);
+            opacity: 0.6;
+            z-index: 0;
         }
 
-        /* Glass Container */
-        .main-card {
+        .scene {
             position: relative;
             z-index: 10;
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            padding: 3rem;
-            border-radius: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            max-width: 600px;
-            width: 90%;
-            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        h1 {
-            font-family: 'Cinzel', serif;
-            color: var(--gold);
-            font-size: 3rem;
-            margin: 0 0 1rem 0;
-            text-shadow: 0 0 15px rgba(255, 207, 64, 0.4);
-        }
-
-        /* Countdown Grid */
-        .countdown {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            margin: 2rem 0;
-        }
-
-        .unit {
-            background: rgba(0,0,0,0.3);
-            padding: 1rem;
-            border-radius: 15px;
-            border-bottom: 3px solid var(--gold);
-        }
-
-        .unit span {
-            display: block;
-            font-size: 2.2rem;
-            font-weight: 600;
-        }
-
-        .unit p {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin: 0;
-            color: var(--gold);
-        }
-
-        /* Interactive Button */
-        .magic-btn {
-            background: transparent;
-            border: 2px solid var(--gold);
-            color: var(--gold);
-            padding: 1rem 2rem;
-            font-size: 1.1rem;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: 0.3s;
-            font-family: 'Cinzel', serif;
-            letter-spacing: 2px;
-            margin-top: 2rem;
-        }
-
-        .magic-btn:hover {
-            background: var(--gold);
-            color: black;
-            box-shadow: 0 0 30px var(--gold);
-        }
-
-        /* Quote Wall */
-        #quote-display {
-            font-style: italic;
-            height: 60px;
-            margin-top: 1.5rem;
-            color: #ccc;
-        }
-
-        /* Dialogue Overlay */
-        #dialogue-box {
-            display: none;
+            height: 100vh;
+            display: flex;
             flex-direction: column;
-            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: opacity 2s ease;
         }
 
-        .hidden { display: none !important; }
+        /* Minimalist Countdown */
+        .minimal-timer {
+            display: flex;
+            gap: 40px;
+            margin-top: 20px;
+        }
+
+        .timer-unit {
+            font-size: 0.8rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--accent);
+            opacity: 0.8;
+        }
+
+        .timer-unit span {
+            display: block;
+            font-size: 3.5rem;
+            font-weight: 200;
+            color: white;
+            letter-spacing: 0;
+            margin-bottom: 5px;
+        }
+
+        /* Heart Touching Text */
+        .poetry {
+            font-family: 'Bodoni Moda', serif;
+            font-style: italic;
+            font-size: 1.5rem;
+            max-width: 600px;
+            line-height: 1.8;
+            margin-bottom: 40px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInBlur 3s forwards;
+        }
+
+        .btn-ethereal {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 100px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.5s;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-ethereal:hover {
+            background: white;
+            color: black;
+            border-color: white;
+        }
+
+        /* Transitions */
+        @keyframes fadeInBlur {
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+
+        .hidden { opacity: 0; pointer-events: none; }
+
+        #final-text {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Bodoni Moda', serif;
+            font-size: 3rem;
+            width: 100%;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 
-    <canvas id="bg-canvas"></canvas>
+    <canvas id="canvas-bg"></canvas>
 
-    <div class="main-card" id="card">
-        <div id="countdown-phase">
-            <h1 id="title">2026 Awaits</h1>
-            <div class="countdown">
-                <div class="unit"><span id="d">00</span><p>Days</p></div>
-                <div class="unit"><span id="h">00</span><p>Hours</p></div>
-                <div class="unit"><span id="m">00</span><p>Mins</p></div>
-                <div class="unit"><span id="s">00</span><p>Secs</p></div>
+    <div id="ui-container">
+        <section class="scene" id="intro-scene">
+            <p class="poetry">The stars are shifting, leaving 2025 behind...<br>Are you ready for your new beginning?</p>
+            
+            <div class="minimal-timer">
+                <div class="timer-unit"><span id="days">00</span>Days</div>
+                <div class="timer-unit"><span id="hours">00</span>Hrs</div>
+                <div class="timer-unit"><span id="minutes">00</span>Min</div>
+                <div class="timer-unit"><span id="seconds">00</span>Sec</div>
             </div>
-            <div id="quote-display">"Preparing the stars for your arrival..."</div>
-            <button class="magic-btn" onclick="startMagic()">UNLOCK THE MAGIC</button>
-        </div>
 
-        <div id="dialogue-box">
-            <h1 id="dia-title">Wait...</h1>
-            <p id="dia-text">Before the year ends, tell me... are you ready to leave the past behind?</p>
-            <div id="dia-btns">
-                <button class="magic-btn" onclick="nextStep(1)">I'm Ready</button>
-            </div>
-        </div>
+            <button class="btn-ethereal" style="margin-top: 60px;" onclick="transitionToSoul()">Step into 2026</button>
+        </section>
     </div>
 
+    <div id="final-text" class="hidden"></div>
+
     <script>
-        // --- Countdown Logic ---
-        function updateTime() {
-            const target = new Date("January 1, 2026 00:00:00").getTime();
-            const now = new Date().getTime();
-            const diff = target - now;
-
-            if (diff > 0) {
-                document.getElementById('d').innerText = Math.floor(diff / (1000 * 60 * 60 * 24)).toString().padStart(2, '0');
-                document.getElementById('h').innerText = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
-                document.getElementById('m').innerText = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
-                document.getElementById('s').innerText = Math.floor((diff % (1000 * 60)) / 1000).toString().padStart(2, '0');
-            } else {
-                document.getElementById('title').innerText = "HAPPY NEW YEAR!";
-            }
-        }
-        setInterval(updateTime, 1000);
-
-        // --- Quotes ---
-        const quotes = [
-            "Your 2026 will be a masterpiece.",
-            "New year, new energy, new results.",
-            "Leave the baggage in 2025.",
-            "The stars are aligning for you."
-        ];
-        setInterval(() => {
-            const q = quotes[Math.floor(Math.random() * quotes.length)];
-            document.getElementById('quote-display').innerText = `"${q}"`;
-        }, 4000);
-
-        // --- Interactive Magic ---
-        function startMagic() {
-            document.getElementById('countdown-phase').classList.add('hidden');
-            document.getElementById('dialogue-box').style.display = 'flex';
-        }
-
-        function nextStep(step) {
-            const text = document.getElementById('dia-text');
-            const btns = document.getElementById('dia-btns');
-            
-            if(step === 1) {
-                text.innerText = "And what is your biggest dream for 2026?";
-                btns.innerHTML = `<input type="text" id="dreamInput" placeholder="Type it here..." style="padding:10px; border-radius:10px; border:none; width:80%; margin-bottom:10px;"><br>
-                                 <button class="magic-btn" onclick="nextStep(2)">Release to Universe</button>`;
-            } else if (step === 2) {
-                const dream = document.getElementById('dreamInput').value || "Success";
-                text.innerText = `Beautiful. Your dream of "${dream}" has been sent to the stars. Now, let's celebrate!`;
-                btns.innerHTML = `<button class="magic-btn" onclick="finalLaunch()">EXPLODE INTO 2026</button>`;
-            }
-        }
-
-        function finalLaunch() {
-            document.getElementById('card').style.transform = "scale(0.8)";
-            document.getElementById('card').style.opacity = "0";
-            setTimeout(() => {
-                document.getElementById('card').classList.add('hidden');
-                
-                // Infinite Fireworks loop
-                var duration = 15 * 1000;
-                var animationEnd = Date.now() + duration;
-                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-
-                function randomInRange(min, max) { return Math.random() * (max - min) + min; }
-
-                var interval = setInterval(function() {
-                    var timeLeft = animationEnd - Date.now();
-                    if (timeLeft <= 0) return clearInterval(interval);
-                    var particleCount = 50 * (timeLeft / duration);
-                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
-                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
-                }, 250);
-                
-                // Show final message
-                const msg = document.createElement('h1');
-                msg.innerHTML = "HAPPY NEW YEAR!<br><span style='font-size:1.5rem; color:white'>2026 is Yours</span>";
-                msg.style.position = "absolute";
-                msg.style.zIndex = "100";
-                msg.style.textAlign = "center";
-                document.body.appendChild(msg);
-            }, 800);
-        }
-
-        // --- Background Particles ---
-        const canvas = document.getElementById('bg-canvas');
+        // 1. ANIMATED AURORA BACKGROUND
+        const canvas = document.getElementById('canvas-bg');
         const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        let particles = [];
+        let w, h, particles = [];
 
-        class Particle {
-            constructor() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.size = Math.random() * 2 + 1;
-                this.speedX = Math.random() * 1 - 0.5;
-                this.speedY = Math.random() * 1 - 0.5;
-            }
-            update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-                if (this.x > canvas.width) this.x = 0;
-                if (this.y > canvas.height) this.y = 0;
-            }
-            draw() {
-                ctx.fillStyle = 'rgba(212, 175, 55, 0.5)';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
+        function initCanvas() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+            particles = [];
+            for(let i=0; i<5; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    r: Math.random() * 400 + 200,
+                    color: ['#1e3a8a', '#581c87', '#0f172a'][i % 3],
+                    vx: Math.random() * 2 - 1,
+                    vy: Math.random() * 2 - 1
+                });
             }
         }
 
-        for (let i = 0; i < 100; i++) particles.push(new Particle());
-
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach(p => { p.update(); p.draw(); });
-            requestAnimationFrame(animate);
+        function drawAurora() {
+            ctx.clearRect(0,0,w,h);
+            particles.forEach(p => {
+                let grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+                grad.addColorStop(0, p.color);
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0,0,w,h);
+                p.x += p.vx; p.y += p.vy;
+                if(p.x<0 || p.x>w) p.vx *= -1;
+                if(p.y<0 || p.y>h) p.vy *= -1;
+            });
+            requestAnimationFrame(drawAurora);
         }
-        animate();
+        initCanvas(); drawAurora();
+
+        // 2. COUNTDOWN LOGIC
+        function updateClock() {
+            const diff = new Date("Jan 1, 2026 00:00:00") - new Date();
+            if (diff > 0) {
+                document.getElementById('days').innerText = Math.floor(diff / 86400000);
+                document.getElementById('hours').innerText = Math.floor((diff / 3600000) % 24);
+                document.getElementById('minutes').innerText = Math.floor((diff / 60000) % 60);
+                document.getElementById('seconds').innerText = Math.floor((diff / 1000) % 60);
+            }
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        // 3. SOULFUL TRANSITION
+        const soulMessages = [
+            "Take a moment to forgive yourself for 2025.",
+            "Every quiet struggle made you stronger.",
+            "Close your eyes and let the past dissolve.",
+            "You are a beautiful work in progress.",
+            "Now, open your heart to the light."
+        ];
+
+        async function transitionToSoul() {
+            const intro = document.getElementById('intro-scene');
+            const finalText = document.getElementById('final-text');
+            intro.classList.add('hidden');
+
+            await new Promise(r => setTimeout(r, 2000));
+            finalText.classList.remove('hidden');
+
+            for (let msg of soulMessages) {
+                finalText.innerHTML = `<i style="font-weight:200; opacity:0; transition: 2s; display:block;">${msg}</i>`;
+                const i = finalText.querySelector('i');
+                setTimeout(() => i.style.opacity = "1", 100);
+                await new Promise(r => setTimeout(r, 4000));
+                i.style.opacity = "0";
+                await new Promise(r => setTimeout(r, 2000));
+            }
+
+            // FINAL BURST
+            finalText.innerHTML = `<span style="font-size: 5rem; letter-spacing:10px; color:var(--accent)">2026</span><br><span style="font-size:1rem; letter-spacing:5px; font-family:'Inter'">YOUR TIME HAS ARRIVED</span>`;
+            
+            // Elegant slow-motion fireworks
+            const duration = 15 * 1000;
+            const animationEnd = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 1,
+                    startVelocity: 0,
+                    ticks: 200,
+                    origin: { x: Math.random(), y: Math.random() - 0.2 },
+                    colors: ['#fef3c7', '#ffffff'],
+                    shapes: ['circle'],
+                    gravity: 0.2,
+                    scalar: 0.7
+                });
+                if (Date.now() < animationEnd) requestAnimationFrame(frame);
+            }());
+        }
     </script>
 </body>
 </html>

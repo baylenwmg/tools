@@ -1,10 +1,137 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>SEO Tools</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Control Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --primary: #38bdf8;
+            --secondary: #818cf8;
+            --text: #f8fafc;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(129, 140, 248, 0.15) 0px, transparent 50%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 900px;
+            padding: 20px;
+        }
+
+        h1 {
+            font-weight: 800;
+            font-size: 3rem;
+            letter-spacing: -1px;
+            margin-bottom: 40px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .tool-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px;
+            text-decoration: none;
+            color: white;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(56, 189, 248, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .icon-box {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 10px 20px rgba(56, 189, 248, 0.3);
+        }
+
+        .tool-card h2 {
+            margin: 10px 0;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        .tool-card p {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
+        /* Animated background decorative circles */
+        .circle {
+            position: absolute;
+            z-index: -1;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+        }
+    </style>
 </head>
 <body>
-  <h1>SEO & Content Tools</h1>
-  <p>Website is live.</p>
+
+    <div class="circle" style="width: 400px; height: 400px; background: var(--primary); top: -100px; left: -100px;"></div>
+
+    <div class="container">
+        <h1>Internal SEO Tools</h1>
+        
+        <div class="grid">
+            <a href="keyword-highlighter.html" class="tool-card">
+                <div class="icon-box">🔍</div>
+                <h2>Visual Highlighter</h2>
+                <p>Instantly scan and highlight Keywords, Brand mentions, and Locations across your content.</p>
+            </a>
+
+            <a href="bulk-meta-extractor.html" class="tool-card">
+                <div class="icon-box">📦</div>
+                <h2>Meta Extractor</h2>
+                <p>Analyze URLs in bulk to extract Titles, Descriptions, and Header tags for deep SEO audits.</p>
+            </a>
+        </div>
+    </div>
+
 </body>
 </html>

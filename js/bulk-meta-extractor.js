@@ -12,7 +12,15 @@ async function extract() {
     }
 
     const total = urls.length;
-    statusEl.textContent = `Processing 0 / ${total} URLs…`;
+    let shownProgress = 0;
+
+    // 🔹 Start progress animation
+    const progressTimer = setInterval(() => {
+        if (shownProgress < total - 1) {
+            shownProgress++;
+            statusEl.textContent = `Processing ${shownProgress} / ${total} URLs…`;
+        }
+    }, 700); // speed of progress animation
 
     try {
         const response = await fetch(
@@ -30,7 +38,8 @@ async function extract() {
 
         const data = await response.json();
 
-        // 🔹 Update progress visually (final state)
+        clearInterval(progressTimer);
+
         statusEl.textContent = `Processing ${total} / ${total} URLs… preparing export`;
 
         const rows = data.map(item => ([
@@ -47,7 +56,8 @@ async function extract() {
         statusEl.textContent = `Completed ${total} / ${total} URLs ✔ Excel downloaded`;
 
     } catch (error) {
+        clearInterval(progressTimer);
         statusEl.textContent =
-            "Something went wrong. Please try again in a moment.";
+            "Something went wrong. Please try again.";
     }
 }

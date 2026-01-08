@@ -1,9 +1,13 @@
 const express = require("express");
 const axios = require("axios");
 const cheerio = require("cheerio");
+const cors = require("cors");
 
 const app = express();
+app.use(cors());
 app.use(express.json());
+
+const TIMEOUT = 15000;
 
 app.post("/extract", async (req, res) => {
   const urls = req.body.urls || [];
@@ -11,18 +15,28 @@ app.post("/extract", async (req, res) => {
 
   for (const url of urls) {
     try {
-      const r = await axios.get(url, { timeout: 15000 });
-      const $ = cheerio.load(r.data);
+      const response = await axios.get(url, {
+        timeout: TIMEOUT,
+        maxRedirects: 5,
+        validateStatus: () => true
+      });
+
+      if (response.status >= 400) {
+        throw new Error("Fetch error");
+      }
+
+      const $ = cheerio.load(response.data);
 
       results.push({
         URL: url,
         "Meta Title": $("title").first().text().trim(),
         "Meta Description": $('meta[name="description"]').attr("content") || "",
-        H1: $("h1").map((_,e)=>$(e).text().trim()).get().join("\n"),
-        H2: $("h2").map((_,e)=>$(e).text().trim()).get().join("\n"),
+        H1: $("h1").map((_, e) => $(e).text().trim()).get().join("\n"),
+        H2: $("h2").map((_, e) => $(e).text().trim()).get().join("\n"),
         Status: "Success"
       });
-    } catch {
+
+    } catch (err) {
       results.push({
         URL: url,
         "Meta Title": "",
@@ -37,4 +51,6 @@ app.post("/extract", async (req, res) => {
   res.json(results);
 });
 
-app.listen(3000, () => console.log("Server running on :3000"));
+app.listen(3000, () => {
+  console.log("Bulk Meta Extractor backend running on http://localhost:3000");
+});

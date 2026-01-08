@@ -1,54 +1,93 @@
-const BACKEND_URL = "http://localhost:3000/extract"; 
-// ⬆️ CHANGE THIS when backend is deployed
+async function extract() {
+    const statusEl = document.getElementById("status");
+    statusEl.textContent = "Processing URLs… please wait";
 
-document.getElementById("extractBtn").addEventListener("click", runExtraction);
+    const raw = document.getElementById("urls").value
+        .split("\n")
+        .map(u => u.trim())
+        .filter(Boolean);
 
-async function runExtraction() {
-  const statusEl = document.getElementById("status");
-  statusEl.textContent = "";
-
-  const raw = document.getElementById("urls").value.trim();
-  if (!raw) {
-    statusEl.textContent = "Please paste URLs first.";
-    return;
-  }
-
-  const urls = raw.split("\n").map(u => u.trim()).filter(Boolean);
-
-  try {
-    const res = await fetch(BACKEND_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urls })
-    });
-
-    if (!res.ok) {
-      throw new Error("Backend not reachable");
+    if (!raw.length) {
+        statusEl.textContent = "Please add at least one URL.";
+        return;
     }
 
-    const data = await res.json();
-    generateCSV(data);
+    const results = [];
 
-  } catch (err) {
-    statusEl.textContent =
-      "Backend is not connected. Start server.js or update BACKEND_URL.";
-  }
+    for (let i = 0; i < raw.length; i++) {
+        const url = raw[i];
+        statusEl.textContent = `Processing ${i + 1} of ${raw.length}`;
+
+        try {
+            const response = await fetch(
+                "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+                { cache: "no-store" }
+            );
+
+            if (!response.ok) throw new Error("Fetch failed");
+
+            const html = await response.text();
+            const doc = new DOMParser().parseFromString(html, "text/html");
+
+            const title =
+                doc.querySelector("title")?.innerText.trim() || "";
+
+            const description =
+                doc.querySelector('meta[name="description"]')?.getAttribute("content")?.trim() || "";
+
+            const h1 = Array.from(doc.querySelectorAll("h1"))
+                .map(h => h.innerText.trim())
+                .filter(Boolean)
+                .join("\n");
+
+            const h2 = Array.from(doc.querySelectorAll("h2"))
+                .map(h => h.innerText.trim())
+                .filter(Boolean)
+                .join("\n");
+
+            results.push([
+                url,
+                title,
+                description,
+                h1,
+                h2,
+                "Success"
+            ]);
+
+        } catch (err) {
+            results.push([
+                url,
+                "",
+                "",
+                "",
+                "",
+                "Failed"
+            ]);
+        }
+    }
+
+    downloadCSV(results);
+    statusEl.textContent = "Done. Excel file downloaded.";
 }
 
-function generateCSV(data) {
-  let csv = "URL,Meta Title,Meta Description,H1,H2,Status\n";
+function downloadCSV(rows) {
+    let csv =
+        "URL,Meta Title,Meta Description,H1,H2,Status\n";
 
-  data.forEach(row => {
-    csv += `"${safe(row.URL)}","${safe(row["Meta Title"])}","${safe(row["Meta Description"])}","${safe(row.H1)}","${safe(row.H2)}","${row.Status}"\n`;
-  });
+    rows.forEach(row => {
+        csv += row
+            .map(val =>
+                `"${(val || "").replace(/"/g, '""')}"`
+            )
+            .join(",") + "\n";
+    });
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "bulk-meta-extractor.csv";
-  a.click();
-}
+    const blob = new Blob([csv], {
+        type: "text/csv;charset=utf-8;"
+    });
 
-function safe(text = "") {
-  return text.replace(/"/g, '""');
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "bulk-meta-extractor.csv";
+    link.click();
 }

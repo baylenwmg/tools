@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brand Name, Keyword and Location Highlighter</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/css/suneditor.min.css"> 
     <style>
         :root {
             --bg: #0f172a;
@@ -247,6 +248,36 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/suneditor.min.js"></script>
+    <script>
+        let editor;
+        try {
+            console.log("Initializing Suneditor...");
+            editor = SUNEDITOR.create('content', {
+                buttonList: [
+                    ['formatBlock', 'list']
+                ],
+                defaultStyle: "font-family: Arial; font-size: 16px;",
+                height: 'auto'
+            });
+            console.log("Suneditor initialized successfully.");
+        } catch (e) {
+            console.error("Suneditor initialization failed:", e);
+        }
+
+        function getEditorContent() {
+            if (editor) {
+                return editor.getContents();
+            }
+            return '';
+        }
+
+        function clearEditor() {
+            if (editor) {
+                editor.setContents('');
+            }
+        }
+    </script>
     <script src="js/highlighter.js"></script>
 </body>
 </html>

@@ -70,6 +70,7 @@ function highlightText() {
     const locationInput = document.getElementById("locations").value.trim();
     const content = getEditorContent();
 
+
     // 1. Validation
     if (!brandInput || !keywordInput || !content.trim()) {
         alert("Please provide Brand Names, Keywords, and Content to run the audit.");
@@ -120,6 +121,7 @@ function highlightText() {
                    (b.length - a.length) ||
                    (typePriority[a.type] - typePriority[b.type]);
         });
+
 
         // 5. Filter Overlaps (Single Source of Truth)
         const winners = [];
@@ -181,7 +183,8 @@ function highlightText() {
 
     displayUnusedKeywords(unusedBrands, unusedKeywords, unusedLocations);
 
-    editor.setContents(tempDiv.innerHTML);
+    editor.setContents('');
+    editor.insertHTML(tempDiv.innerHTML, true);
 
     auditHasRun = true;
 }

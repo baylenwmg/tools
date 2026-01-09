@@ -252,7 +252,6 @@
     <script>
         let editor;
         try {
-            console.log("Initializing Suneditor...");
             editor = SUNEDITOR.create('content', {
                 buttonList: [
                     ['formatBlock', 'list']
@@ -260,7 +259,6 @@
                 defaultStyle: "font-family: Arial; font-size: 16px;",
                 height: 'auto'
             });
-            console.log("Suneditor initialized successfully.");
         } catch (e) {
             console.error("Suneditor initialization failed:", e);
         }
@@ -281,3 +279,4 @@
     <script src="js/highlighter.js"></script>
 </body>
 </html>
+

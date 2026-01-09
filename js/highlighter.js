@@ -283,4 +283,3 @@ function downloadWord() {
     link.click();
     document.body.removeChild(link);
 }
-

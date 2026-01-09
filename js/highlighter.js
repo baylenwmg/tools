@@ -9,7 +9,7 @@ let auditHasRun = false;
 function parseLines(input) {
     return [...new Set(
         input
-            .split(/\n+/)
+            .split(/\n+|\\n/)
             .map(v => v.trim())
             .filter(Boolean)
     )];
@@ -68,10 +68,10 @@ function highlightText() {
     const brandInput = document.getElementById("brand").value.trim();
     const keywordInput = document.getElementById("keywords").value.trim();
     const locationInput = document.getElementById("locations").value.trim();
-    const contentEl = document.getElementById("content");
+    const content = getEditorContent();
 
     // 1. Validation
-    if (!brandInput || !keywordInput || !contentEl.innerText.trim()) {
+    if (!brandInput || !keywordInput || !content.trim()) {
         alert("Please provide Brand Names, Keywords, and Content to run the audit.");
         return;
     }
@@ -85,13 +85,18 @@ function highlightText() {
     const usedKeywords = new Set();
     const usedLocations = new Set();
 
-    // 3. Reset Canvas
-    clearExistingHighlights(contentEl);
+    // 3. Create a temporary div to process the HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+
+
+    // 4. Reset Canvas
+    clearExistingHighlights(tempDiv);
     document.getElementById("unused-keywords-card").style.display = 'none';
 
-    // 4. Process Text Nodes
+    // 5. Process Text Nodes
     const textNodes = [];
-    walkTextNodes(contentEl, n => textNodes.push(n));
+    walkTextNodes(tempDiv, n => textNodes.push(n));
 
     textNodes.forEach(node => {
         const text = node.nodeValue;
@@ -176,6 +181,8 @@ function highlightText() {
 
     displayUnusedKeywords(unusedBrands, unusedKeywords, unusedLocations);
 
+    editor.setContents(tempDiv.innerHTML);
+
     auditHasRun = true;
 }
 
@@ -222,10 +229,6 @@ function displayUnusedKeywords(brands, keywords, locations) {
 /***********************
  * UTILITY ACTIONS
  ***********************/
-function clearEditor() {
-    const contentEl = document.getElementById("content");
-    contentEl.innerHTML = 'Paste your content here...';
-}
 
 
 /***********************
@@ -237,7 +240,7 @@ function downloadWord() {
         return;
     }
 
-    const content = document.getElementById("content").innerHTML;
+    const content = getEditorContent();
 
     // Strict formatting for Microsoft Word (Arial + Specific Sizes)
     const styles = `

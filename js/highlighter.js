@@ -54,7 +54,8 @@ function findMatches(text, list, type, matchesArray) {
                 start: m.index,
                 length: m[0].length,
                 type: type,
-                text: m[0]
+                text: m[0],
+                term: term // Track the original term for unused keyword analysis
             });
         }
     });
@@ -80,9 +81,13 @@ function highlightText() {
     const keywords = parseLines(keywordInput);
     const locations = parseLines(locationInput);
     let stats = { brand: 0, keyword: 0, location: 0 };
+    const usedBrands = new Set();
+    const usedKeywords = new Set();
+    const usedLocations = new Set();
 
     // 3. Reset Canvas
     clearExistingHighlights(contentEl);
+    document.getElementById("unused-keywords-card").style.display = 'none';
 
     // 4. Process Text Nodes
     const textNodes = [];
@@ -104,10 +109,10 @@ function highlightText() {
          * 3. Sort by Type (Brand > Keyword > Location)
          */
         const typePriority = { 'hl-brand': 1, 'hl-keyword': 2, 'hl-location': 3 };
-        
+
         allMatches.sort((a, b) => {
-            return (a.start - b.start) || 
-                   (b.length - a.length) || 
+            return (a.start - b.start) ||
+                   (b.length - a.length) ||
                    (typePriority[a.type] - typePriority[b.type]);
         });
 
@@ -120,11 +125,18 @@ function highlightText() {
             if (match.start >= lastIndex) {
                 winners.push(match);
                 lastIndex = match.start + match.length;
-                
-                // Update specific counts based on final "winner" matches only
-                if (match.type === 'hl-brand') stats.brand++;
-                else if (match.type === 'hl-keyword') stats.keyword++;
-                else if (match.type === 'hl-location') stats.location++;
+
+                // Update specific counts and track used terms
+                if (match.type === 'hl-brand') {
+                    stats.brand++;
+                    usedBrands.add(match.term);
+                } else if (match.type === 'hl-keyword') {
+                    stats.keyword++;
+                    usedKeywords.add(match.term);
+                } else if (match.type === 'hl-location') {
+                    stats.location++;
+                    usedLocations.add(match.term);
+                }
             }
         });
 
@@ -136,13 +148,13 @@ function highlightText() {
             winners.forEach(m => {
                 // Add text before the match
                 frag.appendChild(document.createTextNode(text.slice(cursor, m.start)));
-                
+
                 // Add the highlighted span
                 const span = document.createElement("span");
                 span.className = m.type;
                 span.textContent = text.slice(m.start, m.start + m.length);
                 frag.appendChild(span);
-                
+
                 cursor = m.start + m.length;
             });
 
@@ -156,9 +168,65 @@ function highlightText() {
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
-    
+
+    // 8. Find and Display Unused Keywords
+    const unusedBrands = brands.filter(b => !usedBrands.has(b));
+    const unusedKeywords = keywords.filter(k => !usedKeywords.has(k));
+    const unusedLocations = locations.filter(l => !usedLocations.has(l));
+
+    displayUnusedKeywords(unusedBrands, unusedKeywords, unusedLocations);
+
     auditHasRun = true;
 }
+
+/***********************
+ * UNUSED KEYWORDS DISPLAY
+ ***********************/
+function displayUnusedKeywords(brands, keywords, locations) {
+    const container = document.getElementById("unused-keywords-container");
+    const card = document.getElementById("unused-keywords-card");
+    container.innerHTML = ''; // Clear previous results
+
+    let html = '';
+
+    if (brands.length > 0) {
+        html += `
+            <div class="unused-list">
+                <h4 style="border-color: var(--brand-color);">Unused Brands</h4>
+                <ul>${brands.map(k => `<li>${k}</li>`).join('')}</ul>
+            </div>`;
+    }
+    if (keywords.length > 0) {
+        html += `
+            <div class="unused-list">
+                <h4 style="border-color: var(--keyword-color);">Unused Keywords</h4>
+                <ul>${keywords.map(k => `<li>${k}</li>`).join('')}</ul>
+            </div>`;
+    }
+    if (locations.length > 0) {
+        html += `
+            <div class="unused-list">
+                <h4 style="border-color: var(--location-color);">Unused Locations</h4>
+                <ul>${locations.map(k => `<li>${k}</li>`).join('')}</ul>
+            </div>`;
+    }
+
+    if (html) {
+        container.innerHTML = html;
+        card.style.display = 'block';
+    } else {
+        card.style.display = 'none';
+    }
+}
+
+/***********************
+ * UTILITY ACTIONS
+ ***********************/
+function clearEditor() {
+    const contentEl = document.getElementById("content");
+    contentEl.innerHTML = 'Paste your content here...';
+}
+
 
 /***********************
  * EXPORT WORD

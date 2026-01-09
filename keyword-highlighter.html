@@ -160,6 +160,30 @@
         .stat { text-align: center; }
         .stat-val { display: block; font-size: 1.2rem; font-weight: 800; color: var(--primary); }
         .stat-label { font-size: 0.7rem; text-transform: uppercase; color: #94a3b8; }
+
+        /* Unused Keywords Display */
+        .unused-list { margin-bottom: 15px; }
+        .unused-list h4 {
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #334155;
+        }
+        .unused-list ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .unused-list li {
+            background: #2c3a4f;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+        }
     </style>
 </head>
 <body>
@@ -184,6 +208,11 @@
                     <label style="border-left: 3px solid var(--location-color); padding-left: 8px;">Locations</label>
                     <textarea id="locations" rows="4" placeholder="Melbuorne, Sydney..."></textarea>
                 </div>
+
+                <div class="card" id="unused-keywords-card" style="display: none; margin-top: 20px;">
+                    <span class="step-tag">Step 3: Unused Keywords</span>
+                    <div id="unused-keywords-container"></div>
+                </div>
             </aside>
 
             <main class="editor-container">
@@ -196,6 +225,7 @@
                     <div class="actions" style="margin-top: 20px;">
                         <button class="btn primary" onclick="highlightText()"> Run Highlight</button>
                         <button class="btn outline" onclick="downloadWord()">💾 Export to Word</button>
+                        <button class="btn outline" onclick="clearEditor()">Clear Editor</button>
                     </div>
                 </div>
 

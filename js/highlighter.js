@@ -243,16 +243,23 @@ function downloadWord() {
         return;
     }
 
-    const content = getEditorContent();
+    const wysiwyg = editor.core.context.element.wysiwyg;
+    let content = wysiwyg.innerHTML;
+
+    // Clean the placeholder text if it exists
+    const placeholder = "Paste your content here...";
+    if (content.includes(placeholder)) {
+        content = content.replace(placeholder, "");
+    }
 
     // Strict formatting for Microsoft Word (Arial + Specific Sizes)
     const styles = `
         <style>
-            body { font-family: "Arial", sans-serif; font-size: 12pt; color: #333333; line-height: 1.5; }
+            body { font-family: "Arial", sans-serif; font-size: 12pt; color: #000000; line-height: 1.5; font-weight: normal; }
             h1 { font-size: 18pt; font-weight: bold; margin-bottom: 12pt; color: #000000; }
             h2 { font-size: 16pt; font-weight: bold; margin-top: 14pt; margin-bottom: 10pt; color: #000000; }
             h3 { font-size: 12pt; font-weight: bold; margin-top: 12pt; margin-bottom: 6pt; color: #000000; }
-            p { margin-bottom: 10pt; }
+            p { margin-bottom: 10pt; font-size: 12pt; font-weight: normal; }
             .hl-brand { background-color: #c92d9a; color: #ffffff; padding: 2pt; }
             .hl-keyword { background-color: #ebe538; color: #000000; padding: 2pt; }
             .hl-location { background-color: #15f5f7; color: #000000; padding: 2pt; }

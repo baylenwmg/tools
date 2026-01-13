@@ -6,14 +6,6 @@ let auditHasRun = false;
 /***********************
  * HELPERS
  ***********************/
-
-/**
- * Gets exact colors from the HTML CSS variables
- */
-function getStyleColor(variableName) {
-    return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
-}
-
 function parseLines(input) {
     return [...new Set(
         input
@@ -31,6 +23,7 @@ function walkTextNodes(node, cb) {
     if (node.nodeType === Node.TEXT_NODE) {
         cb(node);
     } else {
+        // Convert to array to avoid issues if the DOM changes during iteration
         Array.from(node.childNodes).forEach(n => walkTextNodes(n, cb));
     }
 }
@@ -44,6 +37,7 @@ function clearExistingHighlights(root) {
         const textNode = document.createTextNode(span.textContent);
         span.parentNode.replaceChild(textNode, span);
     });
+    // Normalize to merge adjacent text nodes
     root.normalize();
 }
 
@@ -52,6 +46,7 @@ function clearExistingHighlights(root) {
  */
 function findMatches(text, list, type, matchesArray) {
     list.forEach(term => {
+        // \b ensures "Whole Word" only matching
         const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, "gi");
         let m;
         while ((m = regex.exec(text)) !== null) {
@@ -60,7 +55,7 @@ function findMatches(text, list, type, matchesArray) {
                 length: m[0].length,
                 type: type,
                 text: m[0],
-                term: term 
+                term: term // Track the original term for unused keyword analysis
             });
         }
     });
@@ -75,31 +70,32 @@ function highlightText() {
     const locationInput = document.getElementById("locations").value.trim();
     const content = getEditorContent();
 
-    if (!brandInput && !keywordInput && !locationInput) {
-        alert("Please provide at least one Brand, Keyword, or Location.");
+
+    // 1. Validation
+    if (!brandInput || !keywordInput || !content.trim()) {
+        alert("Please provide Brand Names, Keywords, and Content to run the audit.");
         return;
     }
 
-    if (!content.trim() || content === "Paste your content here...") {
-        alert("Please provide content to analyze.");
-        return;
-    }
-
+    // 2. Setup Data
     const brands = parseLines(brandInput);
     const keywords = parseLines(keywordInput);
     const locations = parseLines(locationInput);
-    
     let stats = { brand: 0, keyword: 0, location: 0 };
     const usedBrands = new Set();
     const usedKeywords = new Set();
     const usedLocations = new Set();
 
+    // 3. Create a temporary div to process the HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = content;
 
+
+    // 4. Reset Canvas
     clearExistingHighlights(tempDiv);
     document.getElementById("unused-keywords-card").style.display = 'none';
 
+    // 5. Process Text Nodes
     const textNodes = [];
     walkTextNodes(tempDiv, n => textNodes.push(n));
 
@@ -107,10 +103,17 @@ function highlightText() {
         const text = node.nodeValue;
         let allMatches = [];
 
+        // Collect all possible matches across all categories
         findMatches(text, brands, 'hl-brand', allMatches);
         findMatches(text, keywords, 'hl-keyword', allMatches);
         findMatches(text, locations, 'hl-location', allMatches);
 
+        /**
+         * PRIORITY SORTING:
+         * 1. Sort by Start Position (Ascending)
+         * 2. Sort by Length (Descending) - Longer phrases win
+         * 3. Sort by Type (Brand > Keyword > Location)
+         */
         const typePriority = { 'hl-brand': 1, 'hl-keyword': 2, 'hl-location': 3 };
 
         allMatches.sort((a, b) => {
@@ -119,49 +122,70 @@ function highlightText() {
                    (typePriority[a.type] - typePriority[b.type]);
         });
 
+
+        // 5. Filter Overlaps (Single Source of Truth)
         const winners = [];
         let lastIndex = 0;
 
         allMatches.forEach(match => {
+            // Only accept match if it doesn't overlap with the previous winner
             if (match.start >= lastIndex) {
                 winners.push(match);
                 lastIndex = match.start + match.length;
 
-                if (match.type === 'hl-brand') { stats.brand++; usedBrands.add(match.term); }
-                else if (match.type === 'hl-keyword') { stats.keyword++; usedKeywords.add(match.term); }
-                else if (match.type === 'hl-location') { stats.location++; usedLocations.add(match.term); }
+                // Update specific counts and track used terms
+                if (match.type === 'hl-brand') {
+                    stats.brand++;
+                    usedBrands.add(match.term);
+                } else if (match.type === 'hl-keyword') {
+                    stats.keyword++;
+                    usedKeywords.add(match.term);
+                } else if (match.type === 'hl-location') {
+                    stats.location++;
+                    usedLocations.add(match.term);
+                }
             }
         });
 
+        // 6. DOM Reconstruction for this node
         if (winners.length > 0) {
             const frag = document.createDocumentFragment();
             let cursor = 0;
 
             winners.forEach(m => {
+                // Add text before the match
                 frag.appendChild(document.createTextNode(text.slice(cursor, m.start)));
+
+                // Add the highlighted span
                 const span = document.createElement("span");
                 span.className = m.type;
                 span.textContent = text.slice(m.start, m.start + m.length);
                 frag.appendChild(span);
+
                 cursor = m.start + m.length;
             });
 
+            // Add remaining text
             frag.appendChild(document.createTextNode(text.slice(cursor)));
             node.parentNode.replaceChild(frag, node);
         }
     });
 
+    // 7. Update Dashboard Stats
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
 
-    displayUnusedKeywords(
-        brands.filter(b => !usedBrands.has(b)),
-        keywords.filter(k => !usedKeywords.has(k)),
-        locations.filter(l => !usedLocations.has(l))
-    );
+    // 8. Find and Display Unused Keywords
+    const unusedBrands = brands.filter(b => !usedBrands.has(b));
+    const unusedKeywords = keywords.filter(k => !usedKeywords.has(k));
+    const unusedLocations = locations.filter(l => !usedLocations.has(l));
 
-    editor.setContents(tempDiv.innerHTML);
+    displayUnusedKeywords(unusedBrands, unusedKeywords, unusedLocations);
+
+    editor.setContents('');
+    editor.insertHTML(tempDiv.innerHTML, true);
+
     auditHasRun = true;
 }
 
@@ -171,22 +195,31 @@ function highlightText() {
 function displayUnusedKeywords(brands, keywords, locations) {
     const container = document.getElementById("unused-keywords-container");
     const card = document.getElementById("unused-keywords-card");
-    container.innerHTML = '';
+    container.innerHTML = ''; // Clear previous results
 
     let html = '';
-    const renderList = (title, list, colorVar) => {
-        if (list.length === 0) return '';
-        const color = getStyleColor(colorVar);
-        return `
-            <div class="unused-list">
-                <h4 style="border-bottom: 2px solid ${color}">${title}</h4>
-                <ul>${list.map(k => `<li>${k}</li>`).join('')}</ul>
-            </div>`;
-    };
 
-    html += renderList('Unused Brands', brands, '--brand-color');
-    html += renderList('Unused Keywords', keywords, '--keyword-color');
-    html += renderList('Unused Locations', locations, '--location-color');
+    if (brands.length > 0) {
+        html += `
+            <div class="unused-list">
+                <h4 style="border-color: var(--brand-color);">Unused Brands</h4>
+                <ul>${brands.map(k => `<li>${k}</li>`).join('')}</ul>
+            </div>`;
+    }
+    if (keywords.length > 0) {
+        html += `
+            <div class="unused-list">
+                <h4 style="border-color: var(--keyword-color);">Unused Keywords</h4>
+                <ul>${keywords.map(k => `<li>${k}</li>`).join('')}</ul>
+            </div>`;
+    }
+    if (locations.length > 0) {
+        html += `
+            <div class="unused-list">
+                <h4 style="border-color: var(--location-color);">Unused Locations</h4>
+                <ul>${locations.map(k => `<li>${k}</li>`).join('')}</ul>
+            </div>`;
+    }
 
     if (html) {
         container.innerHTML = html;
@@ -197,7 +230,12 @@ function displayUnusedKeywords(brands, keywords, locations) {
 }
 
 /***********************
- * EXPORT WORD (BLACK TEXT, NO BOLD HIGHLIGHTS)
+ * UTILITY ACTIONS
+ ***********************/
+
+
+/***********************
+ * EXPORT WORD
  ***********************/
 function downloadWord() {
     if (!auditHasRun) {
@@ -205,63 +243,43 @@ function downloadWord() {
         return;
     }
 
-    const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = getEditorContent();
+    const content = getEditorContent();
 
-    const colors = {
-        'hl-brand':    getStyleColor('--brand-color'),
-        'hl-keyword':  getStyleColor('--keyword-color'),
-        'hl-location': getStyleColor('--location-color')
-    };
+    // Strict formatting for Microsoft Word (Arial + Specific Sizes)
+    const styles = `
+        <style>
+            body { font-family: "Arial", sans-serif; font-size: 12pt; color: #333333; line-height: 1.5; }
+            h1 { font-size: 18pt; font-weight: bold; margin-bottom: 12pt; color: #000000; }
+            h2 { font-size: 16pt; font-weight: bold; margin-top: 14pt; margin-bottom: 10pt; color: #000000; }
+            h3 { font-size: 12pt; font-weight: bold; margin-top: 12pt; margin-bottom: 6pt; color: #000000; }
+            p { margin-bottom: 10pt; }
+            .hl-brand { background-color: #c92d9a; color: #ffffff; padding: 2pt; }
+            .hl-keyword { background-color: #ebe538; color: #000000; padding: 2pt; }
+            .hl-location { background-color: #15f5f7; color: #000000; padding: 2pt; }
+        </style>
+    `;
 
-    const allElements = tempContainer.querySelectorAll('*');
-    allElements.forEach(el => {
-        const tag = el.tagName.toLowerCase();
-        // Force text to be black across the whole document
-        let style = "color: #000000 !important; font-family: 'Arial', sans-serif;"; 
-
-        if (tag === 'h1') {
-            style += "font-size: 18pt; font-weight: bold; margin-top: 12pt; margin-bottom: 6pt;";
-        } else if (tag === 'h2') {
-            style += "font-size: 16pt; font-weight: bold; margin-top: 10pt; margin-bottom: 5pt;";
-        } else if (tag === 'h3') {
-            style += "font-size: 12pt; font-weight: bold; margin-top: 8pt; margin-bottom: 4pt;";
-        } else {
-            style += "font-size: 12pt; font-weight: normal; margin-bottom: 10pt;";
-        }
-
-        // Apply highlights WITHOUT bold and with black text
-        if (el.classList.contains('hl-brand')) {
-            style += `background-color: ${colors['hl-brand']}; mso-highlight: ${colors['hl-brand']}; font-weight: normal;`;
-        } else if (el.classList.contains('hl-keyword')) {
-            style += `background-color: ${colors['hl-keyword']}; mso-highlight: yellow; font-weight: normal;`;
-        } else if (el.classList.contains('hl-location')) {
-            style += `background-color: ${colors['hl-location']}; mso-highlight: cyan; font-weight: normal;`;
-        }
-
-        el.setAttribute('style', style);
-    });
-
-    const htmlHeader = `
+    const html = `
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
         <head>
             <meta charset="utf-8">
-            <style>
-                body { font-family: Arial; font-size: 12pt; color: #000000; }
-            </style>
+            ${styles}
         </head>
         <body>
-            ${tempContainer.innerHTML}
+            ${content}
         </body>
-        </html>`;
+        </html>
+    `;
 
-    const blob = new Blob(['\ufeff', htmlHeader], { type: "application/msword" });
+    const blob = new Blob(['\ufeff', html], {
+        type: "application/msword"
+    });
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `SEO_Audit_Report.doc`;
+    link.download = "Highlighted-Content-Audit.doc";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
 }

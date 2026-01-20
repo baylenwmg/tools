@@ -42,12 +42,44 @@ function clearExistingHighlights(root) {
 }
 
 /**
- * Core Scanner: Finds all potential matches in a string
+ * Builds a regex for a given term based on the matching mode.
  */
-function findMatches(text, list, type, matchesArray) {
+function buildRegex(term, isAgencyMode) {
+    const escapedTerm = escapeRegex(term);
+
+    if (!isAgencyMode) {
+        return `\\b${escapedTerm}\\b`;
+    }
+
+    const words = escapedTerm.split(/ +/);
+    const lastWord = words.pop();
+    const prefix = words.join(' ');
+
+    let lastWordRegex;
+    // Handle words like "Policy" -> "Policies"
+    if (lastWord.endsWith('y')) {
+        const root = lastWord.slice(0, -1);
+        lastWordRegex = `${root}(y|ies)`;
+    } else {
+        // Handle standard plurals: car(s), bus(es), etc.
+        lastWordRegex = `${lastWord}(s|es|'s)?`;
+    }
+
+    if (prefix) {
+        // Reconstruct the phrase with the flexible last word
+        return `\\b${prefix} ${lastWordRegex}\\b`;
+    } else {
+        return `\\b${lastWordRegex}\\b`;
+    }
+}
+
+/**
+ * Core Scanner: Finds all potential matches in a string using dynamic Regex.
+ */
+function findMatches(text, list, type, matchesArray, isAgencyMode) {
     list.forEach(term => {
-        // \b ensures "Whole Word" only matching
-        const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, "gi");
+        const regexPattern = buildRegex(term, isAgencyMode);
+        const regex = new RegExp(regexPattern, "gi");
         let m;
         while ((m = regex.exec(text)) !== null) {
             matchesArray.push({
@@ -69,6 +101,7 @@ function highlightText() {
     const keywordInput = document.getElementById("keywords").value.trim();
     const locationInput = document.getElementById("locations").value.trim();
     const content = getEditorContent();
+    const isAgencyMode = document.getElementById('agency-mode-toggle').checked;
 
 
     // 1. Validation
@@ -104,9 +137,9 @@ function highlightText() {
         let allMatches = [];
 
         // Collect all possible matches across all categories
-        findMatches(text, brands, 'hl-brand', allMatches);
-        findMatches(text, keywords, 'hl-keyword', allMatches);
-        findMatches(text, locations, 'hl-location', allMatches);
+        findMatches(text, brands, 'hl-brand', allMatches, isAgencyMode);
+        findMatches(text, keywords, 'hl-keyword', allMatches, isAgencyMode);
+        findMatches(text, locations, 'hl-location', allMatches, isAgencyMode);
 
         /**
          * PRIORITY SORTING:
@@ -183,7 +216,6 @@ function highlightText() {
 
     displayUnusedKeywords(unusedBrands, unusedKeywords, unusedLocations);
 
-    editor.setContents('');
     editor.insertHTML(tempDiv.innerHTML, true);
 
     auditHasRun = true;

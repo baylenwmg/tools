@@ -185,6 +185,52 @@
             border-radius: 15px;
             font-size: 0.75rem;
         }
+
+        /* Toggle Switch for Agency Mode */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .toggle-title {
+            margin-left: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .toggle-checkbox {
+            display: none;
+        }
+        .toggle-label {
+            display: block;
+            position: relative;
+            width: 50px;
+            height: 28px;
+            background: #334155;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .toggle-label .toggle-inner {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .toggle-label .toggle-switch {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 100px;
+            transition: left 0.2s;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background: var(--primary);
+        }
+        .toggle-checkbox:checked + .toggle-label .toggle-switch {
+            left: 24px;
+        }
     </style>
 </head>
 <body>
@@ -199,6 +245,15 @@
             <aside class="sidebar">
                 <div class="card">
                     <span class="step-tag">Step 1: Configuration</span>
+
+                    <div class="toggle-container">
+                        <input type="checkbox" id="agency-mode-toggle" class="toggle-checkbox">
+                        <label for="agency-mode-toggle" class="toggle-label">
+                            <span class="toggle-inner"></span>
+                            <span class="toggle-switch"></span>
+                        </label>
+                        <span class="toggle-title">Agency Mode (Smart Matching)</span>
+                    </div>
                     
                     <label style="border-left: 3px solid var(--brand-color); padding-left: 8px;">Brand Names</label>
                     <textarea id="brand" rows="4" placeholder="Web Marketing Guru, Mobile Guru..."></textarea>

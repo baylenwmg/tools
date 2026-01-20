@@ -2,18 +2,18 @@
  * GLOBAL CONFIG
  */
 let auditHasRun = false;
-const editorNode = document.getElementById('editor-core');
+// Note: Ensure your HTML matches this ID or the SunEditor logic
+const editorNode = document.getElementById('content'); 
 
 /**
  * NATIVE EDITOR UTILS
  */
-function formatText(cmd, val = null) {
-    document.execCommand(cmd, false, val);
-    editorNode.focus();
-}
-
 function clearEditor() {
-    editorNode.innerHTML = "Paste your content here...";
+    if (typeof editor !== 'undefined') {
+        editor.setContents('');
+    } else {
+        editorNode.innerHTML = "Paste your content here...";
+    }
     document.getElementById("count-brand").textContent = "0";
     document.getElementById("count-keyword").textContent = "0";
     document.getElementById("count-location").textContent = "0";
@@ -53,13 +53,38 @@ function clearExistingHighlights(root) {
     root.normalize();
 }
 
+/**
+ * UPDATED: Phrase-Aware and Plural-Smart Matching
+ */
 function findMatches(text, list, type, matchesArray) {
+    const isFlexible = document.getElementById("flexible-match").checked;
+
     list.forEach(term => {
-        const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, "gi");
+        let pattern = escapeRegex(term);
+
+        let regex;
+        if (isFlexible) {
+            // Handle "y" to "ies" (e.g., Policy -> Policies)
+            if (pattern.toLowerCase().endsWith('y')) {
+                const root = pattern.slice(0, -1);
+                regex = new RegExp(`\\b${root}(?:y|ies)(?:s|'s)?\\b`, "gi");
+            } else {
+                // Matches phrase + standard plurals (e.g., Premium Car -> Premium Cars)
+                regex = new RegExp(`\\b${pattern}(?:s|es|'s)?\\b`, "gi");
+            }
+        } else {
+            // Strict Mode: Exact match only
+            regex = new RegExp(`\\b${pattern}\\b`, "gi");
+        }
+        
         let m;
         while ((m = regex.exec(text)) !== null) {
             matchesArray.push({
-                start: m.index, length: m[0].length, type: type, text: m[0], term: term 
+                start: m.index, 
+                length: m[0].length, 
+                type: type, 
+                text: m[0], 
+                term: term 
             });
         }
     });
@@ -72,7 +97,9 @@ function highlightText() {
     const brandInput = document.getElementById("brand").value.trim();
     const keywordInput = document.getElementById("keywords").value.trim();
     const locationInput = document.getElementById("locations").value.trim();
-    const content = editorNode.innerHTML;
+    
+    // Support for SunEditor content retrieval
+    const content = (typeof getEditorContent === 'function') ? getEditorContent() : editorNode.innerHTML;
 
     if (!content || content.includes("Paste your content here")) {
         alert("Please paste some content first.");
@@ -155,7 +182,12 @@ function highlightText() {
     if (html) { unusedContainer.innerHTML = html; unusedCard.style.display = 'block'; }
     else { unusedCard.style.display = 'none'; }
 
-    editorNode.innerHTML = tempDiv.innerHTML;
+    // Re-insert into Editor
+    if (typeof editor !== 'undefined') {
+        editor.setContents(tempDiv.innerHTML);
+    } else {
+        editorNode.innerHTML = tempDiv.innerHTML;
+    }
     auditHasRun = true;
 }
 
@@ -168,13 +200,14 @@ function downloadWord() {
         return;
     }
 
+    const contentSource = (typeof getEditorContent === 'function') ? getEditorContent() : editorNode.innerHTML;
     const temp = document.createElement('div');
-    temp.innerHTML = editorNode.innerHTML;
+    temp.innerHTML = contentSource;
 
     const colors = {
-        'hl-brand': getStyleColor('--brand-color'),
-        'hl-keyword': getStyleColor('--keyword-color'),
-        'hl-location': getStyleColor('--location-color')
+        'hl-brand': getStyleColor('--brand-color') || '#c92d9a',
+        'hl-keyword': getStyleColor('--keyword-color') || '#ebe538',
+        'hl-location': getStyleColor('--location-color') || '#15f5f7'
     };
 
     temp.querySelectorAll('*').forEach(el => {
@@ -195,13 +228,12 @@ function downloadWord() {
 
     const blob = new Blob(['\ufeff', `
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-        <head><meta charset="utf-8">
-        </head>
+        <head><meta charset="utf-8"></head>
         <body>${temp.innerHTML}</body>
         </html>`], { type: "application/msword" });
 
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "Report.doc";
+    link.download = "Highlighted-Report.doc";
     link.click();
 }

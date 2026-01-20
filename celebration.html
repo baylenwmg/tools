@@ -90,6 +90,30 @@
             margin-bottom: 15px;
         }
 
+        /* Agency Toggle Styling */
+        .agency-toggle-box {
+            margin-bottom: 20px; 
+            padding: 12px; 
+            background: rgba(56, 189, 248, 0.05); 
+            border: 1px dashed var(--primary); 
+            border-radius: 8px;
+        }
+
+        .toggle-container {
+            display: flex; 
+            align-items: center; 
+            cursor: pointer; 
+            margin-bottom: 0;
+        }
+
+        .toggle-container input {
+            width: 18px; 
+            height: 18px; 
+            margin-right: 10px; 
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
         /* Editor Area */
         .editor-container {
             display: flex;
@@ -200,6 +224,16 @@
                 <div class="card">
                     <span class="step-tag">Step 1: Configuration</span>
                     
+                    <div class="agency-toggle-box">
+                        <label class="toggle-container">
+                            <input type="checkbox" id="flexible-match" checked> 
+                            <span style="font-weight: 600; font-size: 0.85rem; color: var(--primary);">Agency Mode (Smart Plurals)</span>
+                        </label>
+                        <small style="color: #94a3b8; display: block; margin-top: 5px; font-size: 0.7rem; line-height: 1.2;">
+                            Matches phrase variations (e.g., "Car" matches "Cars", "Policy" matches "Policies").
+                        </small>
+                    </div>
+
                     <label style="border-left: 3px solid var(--brand-color); padding-left: 8px;">Brand Names</label>
                     <textarea id="brand" rows="4" placeholder="Web Marketing Guru, Mobile Guru..."></textarea>
 
@@ -207,7 +241,7 @@
                     <textarea id="keywords" rows="4" placeholder="SEO Tools, Marketing..."></textarea>
 
                     <label style="border-left: 3px solid var(--location-color); padding-left: 8px;">Locations</label>
-                    <textarea id="locations" rows="4" placeholder="Melbuorne, Sydney..."></textarea>
+                    <textarea id="locations" rows="4" placeholder="Melbourne, Sydney..."></textarea>
                 </div>
 
                 <div class="card" id="unused-keywords-card" style="display: none; margin-top: 20px;">

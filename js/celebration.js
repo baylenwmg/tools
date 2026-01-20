@@ -2,8 +2,8 @@
  * GLOBAL CONFIG
  */
 let auditHasRun = false;
-// Note: Ensure your HTML matches this ID or the SunEditor logic
-const editorNode = document.getElementById('content'); 
+// Since you are using SunEditor, we target the ID 'content'
+const editorNode = document.getElementById('content');
 
 /**
  * NATIVE EDITOR UTILS
@@ -54,23 +54,26 @@ function clearExistingHighlights(root) {
 }
 
 /**
- * UPDATED: Phrase-Aware and Plural-Smart Matching
+ * SMART HIGHLIGHTING LOGIC (AGENCY MODE)
  */
 function findMatches(text, list, type, matchesArray) {
     const isFlexible = document.getElementById("flexible-match").checked;
 
     list.forEach(term => {
         let pattern = escapeRegex(term);
-
         let regex;
+
         if (isFlexible) {
-            // Handle "y" to "ies" (e.g., Policy -> Policies)
+            // Handle 'y' to 'ies' (e.g., 'Baby' -> 'Babies' or 'NDIS Policy' -> 'NDIS Policies')
             if (pattern.toLowerCase().endsWith('y')) {
                 const root = pattern.slice(0, -1);
-                regex = new RegExp(`\\b${root}(?:y|ies)(?:s|'s)?\\b`, "gi");
-            } else {
-                // Matches phrase + standard plurals (e.g., Premium Car -> Premium Cars)
-                regex = new RegExp(`\\b${pattern}(?:s|es|'s)?\\b`, "gi");
+                // Matches the root + (y OR ies) + optional possessive
+                regex = new RegExp(`\\b${root}(?:y|ies)(?:['’][sS])?\\b`, "gi");
+            } 
+            // Handle standard plurals (e.g., 'Car' -> 'Cars', 'Vehicle' -> 'Vehicles')
+            else {
+                // Matches the term + optional (s, es) + optional possessive
+                regex = new RegExp(`\\b${pattern}(?:s|es)?(?:['’][sS])?\\b`, "gi");
             }
         } else {
             // Strict Mode: Exact match only
@@ -80,10 +83,10 @@ function findMatches(text, list, type, matchesArray) {
         let m;
         while ((m = regex.exec(text)) !== null) {
             matchesArray.push({
-                start: m.index, 
-                length: m[0].length, 
-                type: type, 
-                text: m[0], 
+                start: m.index,
+                length: m[0].length,
+                type: type,
+                text: m[0],
                 term: term 
             });
         }
@@ -98,7 +101,7 @@ function highlightText() {
     const keywordInput = document.getElementById("keywords").value.trim();
     const locationInput = document.getElementById("locations").value.trim();
     
-    // Support for SunEditor content retrieval
+    // Get content from SunEditor
     const content = (typeof getEditorContent === 'function') ? getEditorContent() : editorNode.innerHTML;
 
     if (!content || content.includes("Paste your content here")) {
@@ -130,6 +133,7 @@ function highlightText() {
         findMatches(text, keywords, 'hl-keyword', allMatches);
         findMatches(text, locations, 'hl-location', allMatches);
 
+        // Priority Sort: Longer phrases win first
         const typePriority = { 'hl-brand': 1, 'hl-keyword': 2, 'hl-location': 3 };
         allMatches.sort((a, b) => (a.start - b.start) || (b.length - a.length) || (typePriority[a.type] - typePriority[b.type]));
 
@@ -161,11 +165,12 @@ function highlightText() {
         }
     });
 
+    // Update Dashboard Stats
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
 
-    // Unused Keywords Logic
+    // Unused Keywords UI Logic
     const unusedContainer = document.getElementById("unused-keywords-container");
     const unusedCard = document.getElementById("unused-keywords-card");
     unusedContainer.innerHTML = '';
@@ -179,10 +184,14 @@ function highlightText() {
     html += renderList('Unused Keywords', keywords, usedKeywords, '--keyword-color');
     html += renderList('Unused Locations', locations, usedLocations, '--location-color');
     
-    if (html) { unusedContainer.innerHTML = html; unusedCard.style.display = 'block'; }
-    else { unusedCard.style.display = 'none'; }
+    if (html) { 
+        unusedContainer.innerHTML = html; 
+        unusedCard.style.display = 'block'; 
+    } else { 
+        unusedCard.style.display = 'none'; 
+    }
 
-    // Re-insert into Editor
+    // Push highlighted content back into SunEditor
     if (typeof editor !== 'undefined') {
         editor.setContents(tempDiv.innerHTML);
     } else {
@@ -205,9 +214,9 @@ function downloadWord() {
     temp.innerHTML = contentSource;
 
     const colors = {
-        'hl-brand': getStyleColor('--brand-color') || '#c92d9a',
-        'hl-keyword': getStyleColor('--keyword-color') || '#ebe538',
-        'hl-location': getStyleColor('--location-color') || '#15f5f7'
+        'hl-brand': getStyleColor('--brand-color'),
+        'hl-keyword': getStyleColor('--keyword-color'),
+        'hl-location': getStyleColor('--location-color')
     };
 
     temp.querySelectorAll('*').forEach(el => {
@@ -234,6 +243,6 @@ function downloadWord() {
 
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "Highlighted-Report.doc";
+    link.download = "SEO-Audit-Report.doc";
     link.click();
 }

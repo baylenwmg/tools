@@ -7,9 +7,7 @@ let auditHasRun = false;
  * HELPERS
  ***********************/
 function parseLines(input) {
-    return [...new Set(
-        input.split(/\n+|\\n/).map(v => v.trim()).filter(Boolean)
-    )];
+    return [...new Set(input.split(/\n+|\\n/).map(v => v.trim()).filter(Boolean))];
 }
 
 function escapeRegex(str) {
@@ -25,7 +23,8 @@ function walkTextNodes(node, cb) {
 }
 
 function clearExistingHighlights(root) {
-    const spans = root.querySelectorAll(".hl-brand, .hl-keyword, .hl-location");
+    // Select both the classes and any spans with our specific background colors
+    const spans = root.querySelectorAll('span[class^="hl-"], span[style*="background-color"]');
     spans.forEach(span => {
         const textNode = document.createTextNode(span.textContent);
         span.parentNode.replaceChild(textNode, span);
@@ -34,76 +33,59 @@ function clearExistingHighlights(root) {
 }
 
 /**
- * IMPROVED Agency Mode Regex
- * Ensures strict word boundaries and handles plurals/possessives
+ * FIXED REGEX: Specifically handles plural "NDIS Policy" -> "NDIS Policies"
  */
 function buildRegex(term, isAgencyMode) {
     const escapedTerm = escapeRegex(term);
     if (!isAgencyMode) return `\\b${escapedTerm}\\b`;
 
-    const words = escapedTerm.split(/ +/);
+    const words = escapedTerm.split(/\s+/);
     const lastWord = words.pop();
-    const prefix = words.join(' ');
+    const prefix = words.join('\\s+');
 
     let lastWordRegex;
-    // Policy -> Polic(y|ies)
     if (lastWord.toLowerCase().endsWith('y')) {
         const root = lastWord.slice(0, -1);
         lastWordRegex = `${root}(?:y|ies)`;
     } else {
-        // Vehicle -> Vehicle(s|es|'s)
         lastWordRegex = `${lastWord}(?:s|es|'s)?`;
     }
 
-    // Reconstruct with word boundaries to avoid partial word matches
-    return prefix ? `\\b${prefix}\\s+${lastWordRegex}\\b` : `\\b${lastWordRegex}\\b`;
-}
-
-function findMatches(text, list, type, matchesArray, isAgencyMode) {
-    list.forEach(term => {
-        const regexPattern = buildRegex(term, isAgencyMode);
-        const regex = new RegExp(regexPattern, "gi");
-        let m;
-        while ((m = regex.exec(text)) !== null) {
-            matchesArray.push({
-                start: m.index,
-                length: m[0].length,
-                type: type,
-                text: m[0],
-                term: term // Original keyword from your input list
-            });
-        }
-    });
+    const pattern = prefix ? `${prefix}\\s+${lastWordRegex}` : lastWordRegex;
+    return `\\b${pattern}\\b`;
 }
 
 /***********************
  * MAIN ACTION
  ***********************/
 function highlightText() {
-    const brandInput = document.getElementById("brand").value.trim();
-    const keywordInput = document.getElementById("keywords").value.trim();
-    const locationInput = document.getElementById("locations").value.trim();
-    const content = getEditorContent();
-    const isAgencyMode = document.getElementById('agency-mode-toggle').checked;
-
-    if (!brandInput && !keywordInput && !locationInput) {
-        alert("Please provide input data.");
+    // Get the instance of SunEditor (ensure 'editor' is your global instance)
+    if (!editor) {
+        alert("Editor not initialized.");
         return;
     }
 
-    const brands = parseLines(brandInput);
-    const keywords = parseLines(keywordInput);
-    const locations = parseLines(locationInput);
-    
-    let stats = { brand: 0, keyword: 0, location: 0 };
-    
-    // Using a Set for Case-Insensitive tracking
-    const usedTermsNormalized = new Set(); 
+    const isAgencyMode = document.getElementById('agency-mode-toggle').checked;
+    const brands = parseLines(document.getElementById("brand").value);
+    const keywords = parseLines(document.getElementById("keywords").value);
+    const locations = parseLines(document.getElementById("locations").value);
 
+    // Get raw HTML from editor
+    let content = editor.getContents();
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = content;
 
     clearExistingHighlights(tempDiv);
+
+    let stats = { brand: 0, keyword: 0, location: 0 };
+    const usedTermsNormalized = new Set();
+
+    // Configuration for colors (Force inline styles)
+    const configs = [
+        { list: brands, type: 'hl-brand', color: '#c92d9a', textColor: '#ffffff' },
+        { list: keywords, type: 'hl-keyword', color: '#ebe538', textColor: '#000000' },
+        { list: locations, type: 'hl-location', color: '#15f5f7', textColor: '#000000' }
+    ];
 
     const textNodes = [];
     walkTextNodes(tempDiv, n => textNodes.push(n));
@@ -112,24 +94,27 @@ function highlightText() {
         const text = node.nodeValue;
         let allMatches = [];
 
-        findMatches(text, brands, 'hl-brand', allMatches, isAgencyMode);
-        findMatches(text, keywords, 'hl-keyword', allMatches, isAgencyMode);
-        findMatches(text, locations, 'hl-location', allMatches, isAgencyMode);
+        configs.forEach(config => {
+            config.list.forEach(term => {
+                const regex = new RegExp(buildRegex(term, isAgencyMode), "gi");
+                let m;
+                while ((m = regex.exec(text)) !== null) {
+                    allMatches.push({ ...config, start: m.index, length: m[0].length, term: term });
+                }
+            });
+        });
 
-        // Sort by position, then by length (longest match wins)
+        // Longest match priority
         allMatches.sort((a, b) => (a.start - b.start) || (b.length - a.length));
 
         const winners = [];
         let lastIndex = 0;
-
         allMatches.forEach(match => {
             if (match.start >= lastIndex) {
                 winners.push(match);
                 lastIndex = match.start + match.length;
+                usedTermsNormalized.add(match.term.toLowerCase());
                 
-                // Track original keyword as used (Normalized for safety)
-                usedTermsNormalized.add(match.term.toLowerCase()); 
-
                 if (match.type === 'hl-brand') stats.brand++;
                 if (match.type === 'hl-keyword') stats.keyword++;
                 if (match.type === 'hl-location') stats.location++;
@@ -143,6 +128,11 @@ function highlightText() {
                 frag.appendChild(document.createTextNode(text.slice(cursor, m.start)));
                 const span = document.createElement("span");
                 span.className = m.type;
+                // FORCE STYLES so SunEditor can't hide them
+                span.style.backgroundColor = m.color;
+                span.style.color = m.textColor;
+                span.style.padding = "2px 4px";
+                span.style.borderRadius = "3px";
                 span.textContent = text.slice(m.start, m.start + m.length);
                 frag.appendChild(span);
                 cursor = m.start + m.length;
@@ -152,20 +142,21 @@ function highlightText() {
         }
     });
 
+    // Push back to SunEditor
+    editor.setContents(tempDiv.innerHTML);
+    
     // Update Stats
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
 
-    // Filter Unused List (Normalized check)
+    // Update Unused
     displayUnusedKeywords(
         brands.filter(b => !usedTermsNormalized.has(b.toLowerCase())),
         keywords.filter(k => !usedTermsNormalized.has(k.toLowerCase())),
         locations.filter(l => !usedTermsNormalized.has(l.toLowerCase()))
     );
 
-    // Sync to Editor
-    editor.setContents(tempDiv.innerHTML);
     auditHasRun = true;
 }
 

@@ -7,40 +7,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --primary: #38bdf8;
-            --accent: #818cf8;
-            --success: #34d399;
-            --warning: #facc15;
-            --text: #f1f5f9;
+            --bg: #0f172a; --card-bg: #1e293b; --primary: #38bdf8;
+            --accent: #818cf8; --success: #34d399; --warning: #facc15; --text: #f1f5f9;
         }
 
         body {
             background-color: var(--bg);
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(129, 140, 248, 0.1) 0px, transparent 50%);
-            color: var(--text);
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 40px 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            background-image: radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
+                              radial-gradient(at 100% 0%, rgba(129, 140, 248, 0.1) 0px, transparent 50%);
+            color: var(--text); font-family: 'Inter', sans-serif;
+            margin: 0; padding: 40px 20px; min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
         }
 
         .container { width: 100%; max-width: 850px; }
-
         header { text-align: center; margin-bottom: 40px; }
-
         h1 {
             font-weight: 800; font-size: 2.5rem; letter-spacing: -1px; margin: 0;
             background: linear-gradient(to right, var(--primary), var(--accent));
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-
         .subtitle { color: #94a3b8; margin-top: 10px; font-size: 1rem; }
 
         .main-card {
@@ -49,66 +35,40 @@
             backdrop-filter: blur(10px);
         }
 
-        /* Toggle Mode Styling */
         .mode-selector {
             display: flex; gap: 20px; margin-bottom: 20px;
             background: rgba(15, 23, 42, 0.5); padding: 10px 20px;
             border-radius: 12px; border: 1px solid #334155;
         }
-
         .mode-option { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
-        .mode-option input { cursor: pointer; accent-color: var(--primary); }
 
         .input-group { margin-bottom: 25px; }
-
-        label {
-            display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 12px;
-            color: #cbd5e1; display: flex; align-items: center; gap: 8px;
-        }
-
-        label::before {
-            content: ""; width: 8px; height: 8px; background: var(--primary);
-            border-radius: 50%; display: inline-block;
-        }
+        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 12px; color: #cbd5e1; display: flex; align-items: center; gap: 8px; }
+        label::before { content: ""; width: 8px; height: 8px; background: var(--primary); border-radius: 50%; display: inline-block; }
 
         textarea {
-            width: 100%; min-height: 220px; background: #0f172a;
-            border: 1px solid #334155; border-radius: 12px; color: #fff;
-            padding: 20px; font-family: 'Inter', monospace; font-size: 14px;
-            line-height: 1.6; box-sizing: border-box; transition: all 0.3s ease; resize: vertical;
+            width: 100%; min-height: 220px; background: #0f172a; border: 1px solid #334155;
+            border-radius: 12px; color: #fff; padding: 20px; font-family: monospace;
+            font-size: 14px; line-height: 1.6; box-sizing: border-box; resize: vertical;
         }
 
-        textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1); }
+        /* Progress Bar UI */
+        #progress-wrap { display: none; margin-bottom: 25px; }
+        .bar-bg { width: 100%; height: 10px; background: #0f172a; border-radius: 10px; border: 1px solid #334155; overflow: hidden; margin-top: 8px; }
+        #bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 0.3s ease; }
 
         .actions { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 10px; }
-
         button {
             background: linear-gradient(135deg, var(--primary), var(--accent));
-            color: #0f172a; border: none; padding: 16px 32px; font-size: 16px;
-            font-weight: 700; border-radius: 12px; cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+            color: #0f172a; border: none; padding: 16px 32px; font-weight: 700; border-radius: 12px; cursor: pointer;
         }
 
-        button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(56, 189, 248, 0.3); filter: brightness(1.1); }
-
-        #status { font-size: 14px; color: var(--warning); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        #status { font-size: 14px; color: var(--warning); font-weight: 500; }
 
         .stats-footer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 30px; }
-
-        .stat-box {
-            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 20px; border-radius: 16px; text-align: center;
-        }
-
-        .stat-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 5px; }
-
-        .stat-value { font-size: 1.2rem; font-weight: 700; color: var(--text); }
-
-        @media (max-width: 600px) {
-            .actions { flex-direction: column; align-items: stretch; }
-            .stats-footer { grid-template-columns: 1fr; }
-        }
+        .stat-box { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 16px; text-align: center; }
+        .stat-label { display: block; font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 5px; }
+        .stat-value { font-size: 1.1rem; font-weight: 700; color: var(--text); transition: color 0.3s; }
     </style>
 </head>
 <body>
@@ -120,14 +80,8 @@
 
     <div class="main-card">
         <div class="mode-selector">
-            <label class="mode-option">
-                <input type="radio" name="mode" value="manual" checked onchange="toggleInputMode('manual')">
-                Manual List
-            </label>
-            <label class="mode-option">
-                <input type="radio" name="mode" value="sitemap">
-                XML Sitemap
-            </label>
+            <label class="mode-option"><input type="radio" name="mode" value="manual" checked onchange="toggleInputMode()"> Manual List</label>
+            <label class="mode-option"><input type="radio" name="mode" value="sitemap" onchange="toggleInputMode()"> XML Sitemap</label>
         </div>
 
         <div class="input-group">
@@ -135,31 +89,35 @@
             <textarea id="urls" placeholder="https://example.com/page-1&#10;https://example.com/page-2"></textarea>
         </div>
 
+        <div id="progress-wrap">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;">
+                <span id="prog-detail">Initializing...</span>
+                <span id="prog-count">0 / 0</span>
+            </div>
+            <div class="bar-bg"><div id="bar-fill"></div></div>
+        </div>
+
         <div class="actions">
-            <button onclick="extract()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Extract & Export CSV
-            </button>
+            <button id="extract-btn" onclick="extract()">Extract & Export CSV</button>
             <div id="status">Ready to process...</div>
         </div>
 
         <div class="stats-footer">
             <div class="stat-box">
-                <span class="stat-label">Format</span>
-                <span class="stat-value">CSV Optimized</span>
+                <span class="stat-label">Output Rows</span>
+                <span id="stat-rows" class="stat-value">0 Rows</span>
             </div>
             <div class="stat-box">
-                <span class="stat-label">Extraction</span>
-                <span class="stat-value">Full Metadata</span>
+                <span class="stat-label">Extraction Health</span>
+                <span id="stat-health" class="stat-value">Pending</span>
             </div>
             <div class="stat-box" style="border-color: rgba(56, 189, 248, 0.2);">
                 <span class="stat-label">Automation</span>
-                <span class="stat-value">Sitemap Ready</span>
+                <span id="stat-auto" class="stat-value">Standby</span>
             </div>
         </div>
     </div>
 </div>
-
 <script src="js/bulk-meta-extractor.js"></script>
 </body>
 </html>

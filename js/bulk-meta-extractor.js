@@ -1,62 +1,108 @@
 const BACKEND_URL = "https://bulk-meta-extractor-backend.onrender.com/extract";
 const BATCH_SIZE = 4;
 
+/**
+ * UI Toggle: Adjusts the textarea based on mode
+ */
+window.toggleInputMode = function() {
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const label = document.getElementById("input-label");
+    const textarea = document.getElementById("urls");
+
+    if (mode === "sitemap") {
+        label.textContent = "Sitemap XML URL";
+        textarea.placeholder = "https://example.com/sitemap_index.xml";
+        textarea.style.minHeight = "60px";
+    } else {
+        label.textContent = "Source URLs";
+        textarea.placeholder = "https://example.com/page-1\nhttps://example.com/page-2";
+        textarea.style.minHeight = "220px";
+    }
+};
+
+/**
+ * Main Extraction Function
+ */
 window.extract = async function () {
     const statusEl = document.getElementById("status");
-    const urls = document.getElementById("urls").value
-        .split("\n")
-        .map(u => u.trim())
-        .filter(Boolean);
+    const inputVal = document.getElementById("urls").value.trim();
+    const mode = document.querySelector('input[name="mode"]:checked').value;
 
-    if (!urls.length) {
-        statusEl.textContent = "Please add URLs first.";
+    if (!inputVal) {
+        statusEl.textContent = "Please add a URL or list first.";
         return;
     }
 
-    const total = urls.length;
-    let completed = 0;
-    const results = [];
+    statusEl.textContent = "Starting process...";
 
-    statusEl.textContent = `Processing 0 / ${total} URLs…`;
-
-    for (let i = 0; i < total; i += BATCH_SIZE) {
-        const batch = urls.slice(i, i + BATCH_SIZE);
-
-        try {
-            const res = await fetch(BACKEND_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ urls: batch })
-            });
-
-            const data = await res.json();
-            results.push(...data);
-
-            completed += batch.length;
-            statusEl.textContent = `Processing ${completed} / ${total} URLs…`;
-
-        } catch {
-            completed += batch.length;
-            statusEl.textContent = `Processing ${completed} / ${total} URLs… (partial)`;
-        }
+    // Prepare Payload
+    let payload = {};
+    if (mode === "sitemap") {
+        payload = { sitemapUrl: inputVal, urls: [] };
+    } else {
+        const urls = inputVal.split("\n").map(u => u.trim()).filter(Boolean);
+        payload = { urls: urls };
     }
 
-    downloadCSV(results);
-    statusEl.textContent = `Completed ${results.length} / ${total} URLs ✔ Downloaded`;
+    try {
+        statusEl.textContent = mode === "sitemap" ? "Fetching sitemap & extracting..." : "Processing batch...";
+
+        const response = await fetch(BACKEND_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error("Server error");
+
+        const results = await response.json();
+
+        if (results && results.length > 0) {
+            downloadCSV(results);
+            statusEl.textContent = `Success! ${results.length} URLs processed. ✔`;
+        } else {
+            statusEl.textContent = "No data found. Check your URLs.";
+        }
+
+    } catch (err) {
+        console.error("Extraction error:", err);
+        statusEl.textContent = "Extraction failed. Check backend.";
+    }
 };
 
+/**
+ * CSV Generation & Download
+ */
 function downloadCSV(data) {
     const headers = ["URL", "Title", "Description", "H1", "H2", "Status"];
 
-    const csv = [headers, ...data.map(r => [
-        r.url, r.title, r.description, r.h1, r.h2, r.status
-    ])].map(row =>
+    const csvContent = [
+        headers,
+        ...data.map(r => [
+            r.url, 
+            r.title, 
+            r.description, 
+            r.h1, 
+            r.h2, 
+            r.status
+        ])
+    ].map(row =>
         row.map(v => `"${String(v || "").replace(/"/g, '""')}"`).join(",")
     ).join("\n");
 
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "bulk-meta-extraction.csv";
-    a.click();
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    
+    // Add timestamp to filename
+    const timestamp = new Date().toISOString().slice(0, 10);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `meta-audit-${timestamp}.csv`);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
+
+// Ensure UI matches default selection on load
+document.addEventListener('DOMContentLoaded', toggleInputMode);

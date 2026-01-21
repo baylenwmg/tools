@@ -8,10 +8,7 @@ let auditHasRun = false;
  ***********************/
 function parseLines(input) {
     return [...new Set(
-        input
-            .split(/\n+|\\n/)
-            .map(v => v.trim())
-            .filter(Boolean)
+        input.split(/\n+|\\n/).map(v => v.trim()).filter(Boolean)
     )];
 }
 
@@ -27,9 +24,6 @@ function walkTextNodes(node, cb) {
     }
 }
 
-/**
- * Clears existing highlight spans without losing text content
- */
 function clearExistingHighlights(root) {
     const spans = root.querySelectorAll(".hl-brand, .hl-keyword, .hl-location");
     spans.forEach(span => {
@@ -40,47 +34,32 @@ function clearExistingHighlights(root) {
 }
 
 /**
- * Builds a regex for a given term based on the matching mode.
- * Fixed to better handle multi-word agency keywords.
+ * FIXED Agency Mode Regex
  */
 function buildRegex(term, isAgencyMode) {
     const escapedTerm = escapeRegex(term);
+    if (!isAgencyMode) return `\\b${escapedTerm}\\b`;
 
-    if (!isAgencyMode) {
-        return `\\b${escapedTerm}\\b`;
-    }
-
-    // Split into words to only pluralize the LAST word of a phrase
     const words = escapedTerm.split(/ +/);
-    if (words.length === 0) return "";
-
     const lastWord = words.pop();
     const prefix = words.join(' ');
 
     let lastWordRegex;
-    // Rule 1: Handle "y" -> "ies" (Policy -> Policies)
+    // Handle Policy -> Policies
     if (lastWord.toLowerCase().endsWith('y')) {
         const root = lastWord.slice(0, -1);
         lastWordRegex = `${root}(?:y|ies)`;
-    } 
-    // Rule 2: Handle standard plurals and possessives (Car -> Cars, Car's)
-    else {
+    } else {
+        // Handle Vehicle -> Vehicles
         lastWordRegex = `${lastWord}(?:s|es|'s)?`;
     }
 
-    // Reconstruct phrase: "NDIS" + " " + "Polic(?:y|ies)"
-    const finalPattern = prefix ? `${prefix} ${lastWordRegex}` : lastWordRegex;
-    return `\\b${finalPattern}\\b`;
+    return prefix ? `\\b${prefix} ${lastWordRegex}\\b` : `\\b${lastWordRegex}\\b`;
 }
 
-/**
- * Core Scanner: Finds all potential matches in a string using dynamic Regex.
- */
 function findMatches(text, list, type, matchesArray, isAgencyMode) {
     list.forEach(term => {
         const regexPattern = buildRegex(term, isAgencyMode);
-        if (!regexPattern) return;
-        
         const regex = new RegExp(regexPattern, "gi");
         let m;
         while ((m = regex.exec(text)) !== null) {
@@ -89,7 +68,7 @@ function findMatches(text, list, type, matchesArray, isAgencyMode) {
                 length: m[0].length,
                 type: type,
                 text: m[0],
-                term: term 
+                term: term // This links "NDIS Policies" back to "NDIS Policy"
             });
         }
     });
@@ -105,8 +84,8 @@ function highlightText() {
     const content = getEditorContent();
     const isAgencyMode = document.getElementById('agency-mode-toggle').checked;
 
-    if (!brandInput || !keywordInput || !content.trim()) {
-        alert("Please provide Brand Names, Keywords, and Content to run the audit.");
+    if (!brandInput && !keywordInput && !locationInput) {
+        alert("Please provide input data.");
         return;
     }
 
@@ -115,15 +94,12 @@ function highlightText() {
     const locations = parseLines(locationInput);
     
     let stats = { brand: 0, keyword: 0, location: 0 };
-    const usedBrands = new Set();
-    const usedKeywords = new Set();
-    const usedLocations = new Set();
+    const usedTerms = new Set(); // To track what to remove from "Unused"
 
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = content;
 
     clearExistingHighlights(tempDiv);
-    document.getElementById("unused-keywords-card").style.display = 'none';
 
     const textNodes = [];
     walkTextNodes(tempDiv, n => textNodes.push(n));
@@ -136,13 +112,8 @@ function highlightText() {
         findMatches(text, keywords, 'hl-keyword', allMatches, isAgencyMode);
         findMatches(text, locations, 'hl-location', allMatches, isAgencyMode);
 
-        const typePriority = { 'hl-brand': 1, 'hl-keyword': 2, 'hl-location': 3 };
-
-        allMatches.sort((a, b) => {
-            return (a.start - b.start) ||
-                   (b.length - a.length) ||
-                   (typePriority[a.type] - typePriority[b.type]);
-        });
+        // Sort by length (longest phrases first) so "NDIS Policy" beats "Policy"
+        allMatches.sort((a, b) => (a.start - b.start) || (b.length - a.length));
 
         const winners = [];
         let lastIndex = 0;
@@ -151,24 +122,17 @@ function highlightText() {
             if (match.start >= lastIndex) {
                 winners.push(match);
                 lastIndex = match.start + match.length;
+                usedTerms.add(match.term); // Marks the original keyword as "Used"
 
-                if (match.type === 'hl-brand') {
-                    stats.brand++;
-                    usedBrands.add(match.term);
-                } else if (match.type === 'hl-keyword') {
-                    stats.keyword++;
-                    usedKeywords.add(match.term);
-                } else if (match.type === 'hl-location') {
-                    stats.location++;
-                    usedLocations.add(match.term);
-                }
+                if (match.type === 'hl-brand') stats.brand++;
+                if (match.type === 'hl-keyword') stats.keyword++;
+                if (match.type === 'hl-location') stats.location++;
             }
         });
 
         if (winners.length > 0) {
             const frag = document.createDocumentFragment();
             let cursor = 0;
-
             winners.forEach(m => {
                 frag.appendChild(document.createTextNode(text.slice(cursor, m.start)));
                 const span = document.createElement("span");
@@ -177,23 +141,22 @@ function highlightText() {
                 frag.appendChild(span);
                 cursor = m.start + m.length;
             });
-
             frag.appendChild(document.createTextNode(text.slice(cursor)));
             node.parentNode.replaceChild(frag, node);
         }
     });
 
+    // Update UI
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
 
-    const unusedB = brands.filter(b => !usedBrands.has(b));
-    const unusedK = keywords.filter(k => !usedKeywords.has(k));
-    const unusedL = locations.filter(l => !usedLocations.has(l));
+    displayUnusedKeywords(
+        brands.filter(b => !usedTerms.has(b)),
+        keywords.filter(k => !usedTerms.has(k)),
+        locations.filter(l => !usedTerms.has(l))
+    );
 
-    displayUnusedKeywords(unusedB, unusedK, unusedL);
-
-    // Update SunEditor
     editor.setContents(tempDiv.innerHTML);
     auditHasRun = true;
 }

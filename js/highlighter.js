@@ -42,15 +42,10 @@ function clearExistingHighlights(root) {
 }
 
 /**
- * Builds a regex for a given term based on the matching mode.
+ * Builds a smart regex for a given term to handle plurals.
  */
-function buildRegex(term, isAgencyMode) {
+function buildSmartRegex(term) {
     const escapedTerm = escapeRegex(term);
-
-    if (!isAgencyMode) {
-        return `\\b${escapedTerm}\\b`;
-    }
-
     const words = escapedTerm.split(/ +/);
     const lastWord = words.pop();
     const prefix = words.join(' ');
@@ -78,7 +73,7 @@ function buildRegex(term, isAgencyMode) {
  */
 function findMatches(text, list, type, matchesArray, isAgencyMode) {
     list.forEach(term => {
-        const regexPattern = buildRegex(term, isAgencyMode);
+        const regexPattern = isAgencyMode ? buildSmartRegex(term) : `\\b${escapeRegex(term)}\\b`;
         const regex = new RegExp(regexPattern, "gi");
         let m;
         while ((m = regex.exec(text)) !== null) {
@@ -216,6 +211,7 @@ function highlightText() {
 
     displayUnusedKeywords(unusedBrands, unusedKeywords, unusedLocations);
 
+    editor.setContents('');
     editor.insertHTML(tempDiv.innerHTML, true);
 
     auditHasRun = true;

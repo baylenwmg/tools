@@ -9,98 +9,24 @@ let auditHasRun = false;
 function parseLines(input) {
     return [...new Set(
         input
-            .split(/\n+|\\n/)
-            .map(v => v.trim())
-            .filter(Boolean)
+        .split(/\n+|\\n/)
+        .map(v => v.trim())
+        .filter(Boolean)
     )];
-}
-
-function escapeRegex(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function walkTextNodes(node, cb) {
-    if (node.nodeType === Node.TEXT_NODE) {
-        cb(node);
-    } else {
-        // Convert to array to avoid issues if the DOM changes during iteration
-        Array.from(node.childNodes).forEach(n => walkTextNodes(n, cb));
-    }
-}
-
-/**
- * Clears existing highlight spans without losing text content
- */
-function clearExistingHighlights(root) {
-    const spans = root.querySelectorAll(".hl-brand, .hl-keyword, .hl-location");
-    spans.forEach(span => {
-        const textNode = document.createTextNode(span.textContent);
-        span.parentNode.replaceChild(textNode, span);
-    });
-    // Normalize to merge adjacent text nodes
-    root.normalize();
-}
-
-/**
- * Builds a smart regex for a given term to handle plurals.
- */
-function buildSmartRegex(term) {
-    const escapedTerm = escapeRegex(term);
-    const words = escapedTerm.split(/ +/);
-    const lastWord = words.pop();
-    const prefix = words.join(' ');
-
-    let lastWordRegex;
-    // Handle words like "Policy" -> "Policies"
-    if (lastWord.endsWith('y')) {
-        const root = lastWord.slice(0, -1);
-        lastWordRegex = `${root}(y|ies)`;
-    } else {
-        // Handle standard plurals: car(s), bus(es), etc.
-        lastWordRegex = `${lastWord}(s|es|'s)?`;
-    }
-
-    if (prefix) {
-        // Reconstruct the phrase with the flexible last word
-        return `\\b${prefix} ${lastWordRegex}\\b`;
-    } else {
-        return `\\b${lastWordRegex}\\b`;
-    }
-}
-
-/**
- * Core Scanner: Finds all potential matches in a string using dynamic Regex.
- */
-function findMatches(text, list, type, matchesArray, isAgencyMode) {
-    list.forEach(term => {
-        const regexPattern = isAgencyMode ? buildSmartRegex(term) : `\\b${escapeRegex(term)}\\b`;
-        const regex = new RegExp(regexPattern, "gi");
-        let m;
-        while ((m = regex.exec(text)) !== null) {
-            matchesArray.push({
-                start: m.index,
-                length: m[0].length,
-                type: type,
-                text: m[0],
-                term: term // Track the original term for unused keyword analysis
-            });
-        }
-    });
 }
 
 /***********************
  * MAIN ACTION
  ***********************/
-function highlightText() {
+async function highlightText() {
+    // 1. Get Inputs & Validate
     const brandInput = document.getElementById("brand").value.trim();
     const keywordInput = document.getElementById("keywords").value.trim();
     const locationInput = document.getElementById("locations").value.trim();
-    const content = getEditorContent();
     const isAgencyMode = document.getElementById('agency-mode-toggle').checked;
+    const contentEl = editor.core.context.element.wysiwyg;
 
-
-    // 1. Validation
-    if (!brandInput || !keywordInput || !content.trim()) {
+    if (!brandInput || !keywordInput || !contentEl.textContent.trim()) {
         alert("Please provide Brand Names, Keywords, and Content to run the audit.");
         return;
     }
@@ -109,113 +35,77 @@ function highlightText() {
     const brands = parseLines(brandInput);
     const keywords = parseLines(keywordInput);
     const locations = parseLines(locationInput);
-    let stats = { brand: 0, keyword: 0, location: 0 };
-    const usedBrands = new Set();
-    const usedKeywords = new Set();
-    const usedLocations = new Set();
+    const instance = new Mark(contentEl);
 
-    // 3. Create a temporary div to process the HTML
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
-
-
-    // 4. Reset Canvas
-    clearExistingHighlights(tempDiv);
     document.getElementById("unused-keywords-card").style.display = 'none';
 
-    // 5. Process Text Nodes
-    const textNodes = [];
-    walkTextNodes(tempDiv, n => textNodes.push(n));
+    // 3. Unmark previous highlights
+    await new Promise(resolve => instance.unmark({
+        done: resolve
+    }));
 
-    textNodes.forEach(node => {
-        const text = node.nodeValue;
-        let allMatches = [];
+    // 4. Combine and sort all terms by length (desc) to prioritize longer matches
+    const allTerms = [
+        ...brands.map(t => ({
+            term: t,
+            className: 'hl-brand',
+            type: 'brand'
+        })),
+        ...keywords.map(t => ({
+            term: t,
+            className: 'hl-keyword',
+            type: 'keyword'
+        })),
+        ...locations.map(t => ({
+            term: t,
+            className: 'hl-location',
+            type: 'location'
+        }))
+    ].sort((a, b) => b.term.length - a.term.length);
 
-        // Collect all possible matches across all categories
-        findMatches(text, brands, 'hl-brand', allMatches, isAgencyMode);
-        findMatches(text, keywords, 'hl-keyword', allMatches, isAgencyMode);
-        findMatches(text, locations, 'hl-location', allMatches, isAgencyMode);
+    let stats = {
+        brand: 0,
+        keyword: 0,
+        location: 0
+    };
+    const usedOriginalTerms = new Set();
 
-        /**
-         * PRIORITY SORTING:
-         * 1. Sort by Start Position (Ascending)
-         * 2. Sort by Length (Descending) - Longer phrases win
-         * 3. Sort by Type (Brand > Keyword > Location)
-         */
-        const typePriority = { 'hl-brand': 1, 'hl-keyword': 2, 'hl-location': 3 };
-
-        allMatches.sort((a, b) => {
-            return (a.start - b.start) ||
-                   (b.length - a.length) ||
-                   (typePriority[a.type] - typePriority[b.type]);
-        });
-
-
-        // 5. Filter Overlaps (Single Source of Truth)
-        const winners = [];
-        let lastIndex = 0;
-
-        allMatches.forEach(match => {
-            // Only accept match if it doesn't overlap with the previous winner
-            if (match.start >= lastIndex) {
-                winners.push(match);
-                lastIndex = match.start + match.length;
-
-                // Update specific counts and track used terms
-                if (match.type === 'hl-brand') {
-                    stats.brand++;
-                    usedBrands.add(match.term);
-                } else if (match.type === 'hl-keyword') {
-                    stats.keyword++;
-                    usedKeywords.add(match.term);
-                } else if (match.type === 'hl-location') {
-                    stats.location++;
-                    usedLocations.add(match.term);
-                }
-            }
-        });
-
-        // 6. DOM Reconstruction for this node
-        if (winners.length > 0) {
-            const frag = document.createDocumentFragment();
-            let cursor = 0;
-
-            winners.forEach(m => {
-                // Add text before the match
-                frag.appendChild(document.createTextNode(text.slice(cursor, m.start)));
-
-                // Add the highlighted span
-                const span = document.createElement("span");
-                span.className = m.type;
-                span.textContent = text.slice(m.start, m.start + m.length);
-                frag.appendChild(span);
-
-                cursor = m.start + m.length;
+    // 5. Mark each term one by one to handle overlaps correctly
+    for (const { term, className, type }
+        of allTerms) {
+        let matchesFound = 0;
+        await new Promise(resolve => {
+            instance.mark(term, {
+                element: 'span',
+                className: className,
+                separateWordSearch: false,
+                accuracy: isAgencyMode ? 'complementary' : 'exactly',
+                iframes: false,
+                filter: (textNode) => textNode.parentElement.nodeName !== 'SPAN',
+                each: () => matchesFound++,
+                done: resolve
             });
+        });
 
-            // Add remaining text
-            frag.appendChild(document.createTextNode(text.slice(cursor)));
-            node.parentNode.replaceChild(frag, node);
+        if (matchesFound > 0) {
+            usedOriginalTerms.add(term);
+            stats[type] += matchesFound;
         }
-    });
+    }
 
-    // 7. Update Dashboard Stats
+    // 6. Update UI
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
 
-    // 8. Find and Display Unused Keywords
-    const unusedBrands = brands.filter(b => !usedBrands.has(b));
-    const unusedKeywords = keywords.filter(k => !usedKeywords.has(k));
-    const unusedLocations = locations.filter(l => !usedLocations.has(l));
-
+    const unusedBrands = brands.filter(b => !usedOriginalTerms.has(b));
+    const unusedKeywords = keywords.filter(k => !usedOriginalTerms.has(k));
+    const unusedLocations = locations.filter(l => !usedOriginalTerms.has(l));
     displayUnusedKeywords(unusedBrands, unusedKeywords, unusedLocations);
-
-    editor.setContents('');
-    editor.insertHTML(tempDiv.innerHTML, true);
 
     auditHasRun = true;
 }
+
 
 /***********************
  * UNUSED KEYWORDS DISPLAY
@@ -258,11 +148,6 @@ function displayUnusedKeywords(brands, keywords, locations) {
 }
 
 /***********************
- * UTILITY ACTIONS
- ***********************/
-
-
-/***********************
  * EXPORT WORD
  ***********************/
 function downloadWord() {
@@ -288,9 +173,9 @@ function downloadWord() {
             h2 { font-size: 16pt; font-weight: bold; margin-top: 14pt; margin-bottom: 10pt; color: #000000; }
             h3 { font-size: 12pt; font-weight: bold; margin-top: 12pt; margin-bottom: 6pt; color: #000000; }
             p { margin-bottom: 10pt; font-size: 12pt; font-weight: normal; }
-            .hl-brand { background-color: #c92d9a; color: #ffffff; padding: 2pt; }
-            .hl-keyword { background-color: #ebe538; color: #000000; padding: 2pt; }
-            .hl-location { background-color: #15f5f7; color: #000000; padding: 2pt; }
+            .hl-brand { background-color: #d946ef; color: #ffffff; padding: 2pt; }
+            .hl-keyword { background-color: #f59e0b; color: #000000; padding: 2pt; }
+            .hl-location { background-color: #10b981; color: #000000; padding: 2pt; }
         </style>
     `;
 

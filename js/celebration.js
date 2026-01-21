@@ -7,7 +7,12 @@ let auditHasRun = false;
  * HELPERS
  ***********************/
 function parseLines(input) {
-    return [...new Set(input.split(/\n+|\\n/).map(v => v.trim()).filter(Boolean))];
+    return [...new Set(
+        input
+            .split(/\n+|\\n/)
+            .map(v => v.trim())
+            .filter(Boolean)
+    )];
 }
 
 function escapeRegex(str) {
@@ -18,75 +23,107 @@ function walkTextNodes(node, cb) {
     if (node.nodeType === Node.TEXT_NODE) {
         cb(node);
     } else {
+        // Convert to array to avoid issues if the DOM changes during iteration
         Array.from(node.childNodes).forEach(n => walkTextNodes(n, cb));
     }
 }
 
+/**
+ * Clears existing highlight spans without losing text content
+ */
 function clearExistingHighlights(root) {
-    // Select both the classes and any spans with our specific background colors
-    const spans = root.querySelectorAll('span[class^="hl-"], span[style*="background-color"]');
+    const spans = root.querySelectorAll(".hl-brand, .hl-keyword, .hl-location");
     spans.forEach(span => {
         const textNode = document.createTextNode(span.textContent);
         span.parentNode.replaceChild(textNode, span);
     });
+    // Normalize to merge adjacent text nodes
     root.normalize();
 }
 
 /**
- * FIXED REGEX: Specifically handles plural "NDIS Policy" -> "NDIS Policies"
+ * Builds a smart regex for a given term to handle plurals.
  */
-function buildRegex(term, isAgencyMode) {
+function buildSmartRegex(term) {
     const escapedTerm = escapeRegex(term);
-    if (!isAgencyMode) return `\\b${escapedTerm}\\b`;
-
-    const words = escapedTerm.split(/\s+/);
+    const words = escapedTerm.split(/ +/);
     const lastWord = words.pop();
-    const prefix = words.join('\\s+');
+    const prefix = words.join(' ');
 
     let lastWordRegex;
-    if (lastWord.toLowerCase().endsWith('y')) {
+    // Handle words like "Policy" -> "Policies"
+    if (lastWord.endsWith('y')) {
         const root = lastWord.slice(0, -1);
-        lastWordRegex = `${root}(?:y|ies)`;
+        lastWordRegex = `${root}(y|ies)`;
     } else {
-        lastWordRegex = `${lastWord}(?:s|es|'s)?`;
+        // Handle standard plurals: car(s), bus(es), etc.
+        lastWordRegex = `${lastWord}(s|es|'s)?`;
     }
 
-    const pattern = prefix ? `${prefix}\\s+${lastWordRegex}` : lastWordRegex;
-    return `\\b${pattern}\\b`;
+    if (prefix) {
+        // Reconstruct the phrase with the flexible last word
+        return `\\b${prefix} ${lastWordRegex}\\b`;
+    } else {
+        return `\\b${lastWordRegex}\\b`;
+    }
+}
+
+/**
+ * Core Scanner: Finds all potential matches in a string using dynamic Regex.
+ */
+function findMatches(text, list, type, matchesArray, isAgencyMode) {
+    list.forEach(term => {
+        const regexPattern = isAgencyMode ? buildSmartRegex(term) : `\\b${escapeRegex(term)}\\b`;
+        const regex = new RegExp(regexPattern, "gi");
+        let m;
+        while ((m = regex.exec(text)) !== null) {
+            matchesArray.push({
+                start: m.index,
+                length: m[0].length,
+                type: type,
+                text: m[0],
+                term: term // Track the original term for unused keyword analysis
+            });
+        }
+    });
 }
 
 /***********************
  * MAIN ACTION
  ***********************/
 function highlightText() {
-    // Get the instance of SunEditor (ensure 'editor' is your global instance)
-    if (!editor) {
-        alert("Editor not initialized.");
+    const brandInput = document.getElementById("brand").value.trim();
+    const keywordInput = document.getElementById("keywords").value.trim();
+    const locationInput = document.getElementById("locations").value.trim();
+    const content = getEditorContent();
+    const isAgencyMode = document.getElementById('agency-mode-toggle').checked;
+
+
+    // 1. Validation
+    if (!brandInput || !keywordInput || !content.trim()) {
+        alert("Please provide Brand Names, Keywords, and Content to run the audit.");
         return;
     }
 
-    const isAgencyMode = document.getElementById('agency-mode-toggle').checked;
-    const brands = parseLines(document.getElementById("brand").value);
-    const keywords = parseLines(document.getElementById("keywords").value);
-    const locations = parseLines(document.getElementById("locations").value);
+    // 2. Setup Data
+    const brands = parseLines(brandInput);
+    const keywords = parseLines(keywordInput);
+    const locations = parseLines(locationInput);
+    let stats = { brand: 0, keyword: 0, location: 0 };
+    const usedBrands = new Set();
+    const usedKeywords = new Set();
+    const usedLocations = new Set();
 
-    // Get raw HTML from editor
-    let content = editor.getContents();
+    // 3. Create a temporary div to process the HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = content;
 
+
+    // 4. Reset Canvas
     clearExistingHighlights(tempDiv);
+    document.getElementById("unused-keywords-card").style.display = 'none';
 
-    let stats = { brand: 0, keyword: 0, location: 0 };
-    const usedTermsNormalized = new Set();
-
-    // Configuration for colors (Force inline styles)
-    const configs = [
-        { list: brands, type: 'hl-brand', color: '#c92d9a', textColor: '#ffffff' },
-        { list: keywords, type: 'hl-keyword', color: '#ebe538', textColor: '#000000' },
-        { list: locations, type: 'hl-location', color: '#15f5f7', textColor: '#000000' }
-    ];
-
+    // 5. Process Text Nodes
     const textNodes = [];
     walkTextNodes(tempDiv, n => textNodes.push(n));
 
@@ -94,68 +131,88 @@ function highlightText() {
         const text = node.nodeValue;
         let allMatches = [];
 
-        configs.forEach(config => {
-            config.list.forEach(term => {
-                const regex = new RegExp(buildRegex(term, isAgencyMode), "gi");
-                let m;
-                while ((m = regex.exec(text)) !== null) {
-                    allMatches.push({ ...config, start: m.index, length: m[0].length, term: term });
-                }
-            });
+        // Collect all possible matches across all categories
+        findMatches(text, brands, 'hl-brand', allMatches, isAgencyMode);
+        findMatches(text, keywords, 'hl-keyword', allMatches, isAgencyMode);
+        findMatches(text, locations, 'hl-location', allMatches, isAgencyMode);
+
+        /**
+         * PRIORITY SORTING:
+         * 1. Sort by Start Position (Ascending)
+         * 2. Sort by Length (Descending) - Longer phrases win
+         * 3. Sort by Type (Brand > Keyword > Location)
+         */
+        const typePriority = { 'hl-brand': 1, 'hl-keyword': 2, 'hl-location': 3 };
+
+        allMatches.sort((a, b) => {
+            return (a.start - b.start) ||
+                   (b.length - a.length) ||
+                   (typePriority[a.type] - typePriority[b.type]);
         });
 
-        // Longest match priority
-        allMatches.sort((a, b) => (a.start - b.start) || (b.length - a.length));
 
+        // 5. Filter Overlaps (Single Source of Truth)
         const winners = [];
         let lastIndex = 0;
+
         allMatches.forEach(match => {
+            // Only accept match if it doesn't overlap with the previous winner
             if (match.start >= lastIndex) {
                 winners.push(match);
                 lastIndex = match.start + match.length;
-                usedTermsNormalized.add(match.term.toLowerCase());
-                
-                if (match.type === 'hl-brand') stats.brand++;
-                if (match.type === 'hl-keyword') stats.keyword++;
-                if (match.type === 'hl-location') stats.location++;
+
+                // Update specific counts and track used terms
+                if (match.type === 'hl-brand') {
+                    stats.brand++;
+                    usedBrands.add(match.term);
+                } else if (match.type === 'hl-keyword') {
+                    stats.keyword++;
+                    usedKeywords.add(match.term);
+                } else if (match.type === 'hl-location') {
+                    stats.location++;
+                    usedLocations.add(match.term);
+                }
             }
         });
 
+        // 6. DOM Reconstruction for this node
         if (winners.length > 0) {
             const frag = document.createDocumentFragment();
             let cursor = 0;
+
             winners.forEach(m => {
+                // Add text before the match
                 frag.appendChild(document.createTextNode(text.slice(cursor, m.start)));
+
+                // Add the highlighted span
                 const span = document.createElement("span");
                 span.className = m.type;
-                // FORCE STYLES so SunEditor can't hide them
-                span.style.backgroundColor = m.color;
-                span.style.color = m.textColor;
-                span.style.padding = "2px 4px";
-                span.style.borderRadius = "3px";
                 span.textContent = text.slice(m.start, m.start + m.length);
                 frag.appendChild(span);
+
                 cursor = m.start + m.length;
             });
+
+            // Add remaining text
             frag.appendChild(document.createTextNode(text.slice(cursor)));
             node.parentNode.replaceChild(frag, node);
         }
     });
 
-    // Push back to SunEditor
-    editor.setContents(tempDiv.innerHTML);
-    
-    // Update Stats
+    // 7. Update Dashboard Stats
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
 
-    // Update Unused
-    displayUnusedKeywords(
-        brands.filter(b => !usedTermsNormalized.has(b.toLowerCase())),
-        keywords.filter(k => !usedTermsNormalized.has(k.toLowerCase())),
-        locations.filter(l => !usedTermsNormalized.has(l.toLowerCase()))
-    );
+    // 8. Find and Display Unused Keywords
+    const unusedBrands = brands.filter(b => !usedBrands.has(b));
+    const unusedKeywords = keywords.filter(k => !usedKeywords.has(k));
+    const unusedLocations = locations.filter(l => !usedLocations.has(l));
+
+    displayUnusedKeywords(unusedBrands, unusedKeywords, unusedLocations);
+
+    editor.setContents('');
+    editor.insertHTML(tempDiv.innerHTML, true);
 
     auditHasRun = true;
 }
@@ -166,17 +223,30 @@ function highlightText() {
 function displayUnusedKeywords(brands, keywords, locations) {
     const container = document.getElementById("unused-keywords-container");
     const card = document.getElementById("unused-keywords-card");
-    container.innerHTML = '';
+    container.innerHTML = ''; // Clear previous results
 
     let html = '';
+
     if (brands.length > 0) {
-        html += `<div class="unused-list"><h4 style="border-color: var(--brand-color);">Unused Brands</h4><ul>${brands.map(k => `<li>${k}</li>`).join('')}</ul></div>`;
+        html += `
+            <div class="unused-list">
+                <h4 style="border-color: var(--brand-color);">Unused Brands</h4>
+                <ul>${brands.map(k => `<li>${k}</li>`).join('')}</ul>
+            </div>`;
     }
     if (keywords.length > 0) {
-        html += `<div class="unused-list"><h4 style="border-color: var(--keyword-color);">Unused Keywords</h4><ul>${keywords.map(k => `<li>${k}</li>`).join('')}</ul></div>`;
+        html += `
+            <div class="unused-list">
+                <h4 style="border-color: var(--keyword-color);">Unused Keywords</h4>
+                <ul>${keywords.map(k => `<li>${k}</li>`).join('')}</ul>
+            </div>`;
     }
     if (locations.length > 0) {
-        html += `<div class="unused-list"><h4 style="border-color: var(--location-color);">Unused Locations</h4><ul>${locations.map(k => `<li>${k}</li>`).join('')}</ul></div>`;
+        html += `
+            <div class="unused-list">
+                <h4 style="border-color: var(--location-color);">Unused Locations</h4>
+                <ul>${locations.map(k => `<li>${k}</li>`).join('')}</ul>
+            </div>`;
     }
 
     if (html) {
@@ -188,6 +258,11 @@ function displayUnusedKeywords(brands, keywords, locations) {
 }
 
 /***********************
+ * UTILITY ACTIONS
+ ***********************/
+
+
+/***********************
  * EXPORT WORD
  ***********************/
 function downloadWord() {
@@ -196,23 +271,50 @@ function downloadWord() {
         return;
     }
 
-    const content = editor.getContents();
+    const wysiwyg = editor.core.context.element.wysiwyg;
+    let content = wysiwyg.innerHTML;
+
+    // Clean the placeholder text if it exists
+    const placeholder = "Paste your content here...";
+    if (content.includes(placeholder)) {
+        content = content.replace(placeholder, "");
+    }
+
+    // Strict formatting for Microsoft Word (Arial + Specific Sizes)
     const styles = `
         <style>
-            body { font-family: "Arial", sans-serif; font-size: 12pt; color: #000000; line-height: 1.5; }
-            .hl-brand { background-color: #c92d9a; color: #ffffff; padding: 1px 3px; }
-            .hl-keyword { background-color: #ebe538; color: #000000; padding: 1px 3px; }
-            .hl-location { background-color: #15f5f7; color: #000000; padding: 1px 3px; }
+            body { font-family: "Arial", sans-serif; font-size: 12pt; color: #000000; line-height: 1.5; font-weight: normal; }
+            h1 { font-size: 18pt; font-weight: bold; margin-bottom: 12pt; color: #000000; }
+            h2 { font-size: 16pt; font-weight: bold; margin-top: 14pt; margin-bottom: 10pt; color: #000000; }
+            h3 { font-size: 12pt; font-weight: bold; margin-top: 12pt; margin-bottom: 6pt; color: #000000; }
+            p { margin-bottom: 10pt; font-size: 12pt; font-weight: normal; }
+            .hl-brand { background-color: #c92d9a; color: #ffffff; padding: 2pt; }
+            .hl-keyword { background-color: #ebe538; color: #000000; padding: 2pt; }
+            .hl-location { background-color: #15f5f7; color: #000000; padding: 2pt; }
         </style>
     `;
 
-    const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-        <head><meta charset="utf-8">${styles}</head>
-        <body>${content}</body></html>`;
+    const html = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head>
+            <meta charset="utf-8">
+            ${styles}
+        </head>
+        <body>
+            ${content}
+        </body>
+        </html>
+    `;
 
-    const blob = new Blob(['\ufeff', html], { type: "application/msword" });
+    const blob = new Blob(['\ufeff', html], {
+        type: "application/msword"
+    });
+
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
+    link.href = url;
     link.download = "Highlighted-Content-Audit.doc";
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 }

@@ -5,7 +5,6 @@ let auditHasRun = false;
 
 /***********************
  * SMART REGEX ENGINE
- * Matches "Policy" -> "Policies", "Car" -> "Cars"
  ***********************/
 function buildPluralRegex(term) {
     const words = term.split(/\s+/);
@@ -50,13 +49,18 @@ function clearExistingHighlights(root) {
  ***********************/
 function highlightText() {
     // 1. Get Inputs
-    const brands = parseLines(document.getElementById("brand").value);
-    const keywords = parseLines(document.getElementById("keywords").value);
-    const locations = parseLines(document.getElementById("locations").value);
+    const brandInput = document.getElementById("brand").value;
+    const keywordInput = document.getElementById("keywords").value;
+    const locationInput = document.getElementById("locations").value;
 
-    // 2. Get Content from SunEditor
-    // We use sunEditorInstance which was defined in the HTML script tag
+    const brands = parseLines(brandInput);
+    const keywords = parseLines(keywordInput);
+    const locations = parseLines(locationInput);
+
+    // 2. Get Content safely from SunEditor
+    // This replaces the "getEditorContent is not defined" error
     const rawHTML = sunEditorInstance.getContents();
+    
     if (!rawHTML || rawHTML === '<p><br></p>') {
         alert("Please paste content into the editor first.");
         return;
@@ -99,7 +103,6 @@ function highlightText() {
             });
         });
 
-        // Sort by length (longest match wins) and position
         allMatches.sort((a, b) => (a.start - b.start) || (b.length - a.length));
 
         const winners = [];
@@ -108,8 +111,6 @@ function highlightText() {
             if (match.start >= lastIndex) {
                 winners.push(match);
                 lastIndex = match.start + match.length;
-                
-                // Analytics
                 usedTermsNormalized.add(match.originalTerm.toLowerCase());
                 if (match.type === 'hl-brand') stats.brand++;
                 if (match.type === 'hl-keyword') stats.keyword++;
@@ -117,7 +118,6 @@ function highlightText() {
             }
         });
 
-        // 5. Inject Spans
         if (winners.length > 0) {
             const frag = document.createDocumentFragment();
             let cursor = 0;
@@ -134,10 +134,10 @@ function highlightText() {
         }
     });
 
-    // 6. Push back to SunEditor
+    // 5. Push back to SunEditor
     sunEditorInstance.setContents(tempDiv.innerHTML);
 
-    // 7. Update UI
+    // 6. Update Dashboard
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
@@ -164,6 +164,15 @@ function updateUnusedUI(brands, keywords, locations, usedSet) {
     renderSection("Unused Locations", locations);
     
     document.getElementById("unused-keywords-card").style.display = container.innerHTML ? "block" : "none";
+}
+
+function clearEditor() {
+    sunEditorInstance.setContents('');
+    document.getElementById("unused-keywords-card").style.display = "none";
+    document.getElementById("count-brand").textContent = "0";
+    document.getElementById("count-keyword").textContent = "0";
+    document.getElementById("count-location").textContent = "0";
+    auditHasRun = false;
 }
 
 function downloadWord() {

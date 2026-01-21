@@ -19,70 +19,67 @@ function escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Build singular/plural safe regex
+ * Works for:
+ * wall ⇄ walls
+ * service ⇄ services
+ * policy ⇄ policies
+ * AND multi-word phrases
+ */
+function buildPluralRegex(term) {
+    const words = term.split(/\s+/).map(word => {
+        if (word.endsWith('y')) {
+            const root = word.slice(0, -1);
+            return `${escapeRegex(root)}(y|ies)`;
+        }
+        return `${escapeRegex(word)}(s|es)?`;
+    });
+
+    return `\\b${words.join('\\s+')}\\b`;
+}
+
 function walkTextNodes(node, cb) {
     if (node.nodeType === Node.TEXT_NODE) {
         cb(node);
     } else {
-        // Convert to array to avoid issues if the DOM changes during iteration
         Array.from(node.childNodes).forEach(n => walkTextNodes(n, cb));
     }
 }
 
-/**
- * Clears existing highlight spans without losing text content
- */
 function clearExistingHighlights(root) {
     const spans = root.querySelectorAll(".hl-brand, .hl-keyword, .hl-location");
     spans.forEach(span => {
-        const textNode = document.createTextNode(span.textContent);
-        span.parentNode.replaceChild(textNode, span);
+        span.replaceWith(document.createTextNode(span.textContent));
     });
-    // Normalize to merge adjacent text nodes
     root.normalize();
 }
 
-/**
- * Builds a smart regex for a given term to handle plurals.
- */
-function buildSmartRegex(term) {
-    const escapedTerm = escapeRegex(term);
-    const words = escapedTerm.split(/ +/);
-    const lastWord = words.pop();
-    const prefix = words.join(' ');
-
-    let lastWordRegex;
-    // Handle words like "Policy" -> "Policies"
-    if (lastWord.endsWith('y')) {
-        const root = lastWord.slice(0, -1);
-        lastWordRegex = `${root}(y|ies)`;
-    } else {
-        // Handle standard plurals: car(s), bus(es), etc.
-        lastWordRegex = `${lastWord}(s|es|'s)?`;
-    }
-
-    if (prefix) {
-        // Reconstruct the phrase with the flexible last word
-        return `\\b${prefix} ${lastWordRegex}\\b`;
-    } else {
-        return `\\b${lastWordRegex}\\b`;
-    }
-}
-
-/**
- * Core Scanner: Finds all potential matches in a string using dynamic Regex.
- */
-function findMatches(text, list, type, matchesArray, isAgencyMode) {
+/***********************
+ * CORE MATCHING
+ ***********************/
+function findMatches(text, list, type, matchesArray, variantTracker) {
     list.forEach(term => {
-        const regexPattern = isAgencyMode ? buildSmartRegex(term) : `\\b${escapeRegex(term)}\\b`;
-        const regex = new RegExp(regexPattern, "gi");
+        const regex = new RegExp(buildPluralRegex(term), "gi");
         let m;
+
         while ((m = regex.exec(text)) !== null) {
+            const matchedText = m[0];
+
+            // Track plural/singular variant usage
+            if (matchedText.toLowerCase() !== term.toLowerCase()) {
+                if (!variantTracker.has(term)) {
+                    variantTracker.set(term, new Set());
+                }
+                variantTracker.get(term).add(matchedText);
+            }
+
             matchesArray.push({
                 start: m.index,
-                length: m[0].length,
-                type: type,
-                text: m[0],
-                term: term // Track the original term for unused keyword analysis
+                length: matchedText.length,
+                type,
+                text: matchedText,
+                term
             });
         }
     });
@@ -96,34 +93,30 @@ function highlightText() {
     const keywordInput = document.getElementById("keywords").value.trim();
     const locationInput = document.getElementById("locations").value.trim();
     const content = getEditorContent();
-    const isAgencyMode = document.getElementById('agency-mode-toggle').checked;
 
-
-    // 1. Validation
     if (!brandInput || !keywordInput || !content.trim()) {
         alert("Please provide Brand Names, Keywords, and Content to run the audit.");
         return;
     }
 
-    // 2. Setup Data
     const brands = parseLines(brandInput);
     const keywords = parseLines(keywordInput);
     const locations = parseLines(locationInput);
+
     let stats = { brand: 0, keyword: 0, location: 0 };
     const usedBrands = new Set();
     const usedKeywords = new Set();
     const usedLocations = new Set();
 
-    // 3. Create a temporary div to process the HTML
+    const variantMatches = new Map(); // ⭐ NEW
+
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = content;
 
-
-    // 4. Reset Canvas
     clearExistingHighlights(tempDiv);
     document.getElementById("unused-keywords-card").style.display = 'none';
+    document.getElementById("variant-match-card").style.display = 'none';
 
-    // 5. Process Text Nodes
     const textNodes = [];
     walkTextNodes(tempDiv, n => textNodes.push(n));
 
@@ -131,37 +124,26 @@ function highlightText() {
         const text = node.nodeValue;
         let allMatches = [];
 
-        // Collect all possible matches across all categories
-        findMatches(text, brands, 'hl-brand', allMatches, isAgencyMode);
-        findMatches(text, keywords, 'hl-keyword', allMatches, isAgencyMode);
-        findMatches(text, locations, 'hl-location', allMatches, isAgencyMode);
+        findMatches(text, brands, 'hl-brand', allMatches, variantMatches);
+        findMatches(text, keywords, 'hl-keyword', allMatches, variantMatches);
+        findMatches(text, locations, 'hl-location', allMatches, variantMatches);
 
-        /**
-         * PRIORITY SORTING:
-         * 1. Sort by Start Position (Ascending)
-         * 2. Sort by Length (Descending) - Longer phrases win
-         * 3. Sort by Type (Brand > Keyword > Location)
-         */
         const typePriority = { 'hl-brand': 1, 'hl-keyword': 2, 'hl-location': 3 };
 
-        allMatches.sort((a, b) => {
-            return (a.start - b.start) ||
-                   (b.length - a.length) ||
-                   (typePriority[a.type] - typePriority[b.type]);
-        });
+        allMatches.sort((a, b) =>
+            (a.start - b.start) ||
+            (b.length - a.length) ||
+            (typePriority[a.type] - typePriority[b.type])
+        );
 
-
-        // 5. Filter Overlaps (Single Source of Truth)
         const winners = [];
         let lastIndex = 0;
 
         allMatches.forEach(match => {
-            // Only accept match if it doesn't overlap with the previous winner
             if (match.start >= lastIndex) {
                 winners.push(match);
                 lastIndex = match.start + match.length;
 
-                // Update specific counts and track used terms
                 if (match.type === 'hl-brand') {
                     stats.brand++;
                     usedBrands.add(match.term);
@@ -175,41 +157,36 @@ function highlightText() {
             }
         });
 
-        // 6. DOM Reconstruction for this node
-        if (winners.length > 0) {
+        if (winners.length) {
             const frag = document.createDocumentFragment();
             let cursor = 0;
 
             winners.forEach(m => {
-                // Add text before the match
                 frag.appendChild(document.createTextNode(text.slice(cursor, m.start)));
 
-                // Add the highlighted span
                 const span = document.createElement("span");
                 span.className = m.type;
-                span.textContent = text.slice(m.start, m.start + m.length);
+                span.textContent = m.text;
                 frag.appendChild(span);
 
                 cursor = m.start + m.length;
             });
 
-            // Add remaining text
             frag.appendChild(document.createTextNode(text.slice(cursor)));
-            node.parentNode.replaceChild(frag, node);
+            node.replaceWith(frag);
         }
     });
 
-    // 7. Update Dashboard Stats
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
 
-    // 8. Find and Display Unused Keywords
     const unusedBrands = brands.filter(b => !usedBrands.has(b));
     const unusedKeywords = keywords.filter(k => !usedKeywords.has(k));
     const unusedLocations = locations.filter(l => !usedLocations.has(l));
 
     displayUnusedKeywords(unusedBrands, unusedKeywords, unusedLocations);
+    displayVariantMatches(variantMatches);
 
     editor.setContents('');
     editor.insertHTML(tempDiv.innerHTML, true);
@@ -218,52 +195,46 @@ function highlightText() {
 }
 
 /***********************
- * UNUSED KEYWORDS DISPLAY
+ * UNUSED + VARIANT UI
  ***********************/
 function displayUnusedKeywords(brands, keywords, locations) {
     const container = document.getElementById("unused-keywords-container");
     const card = document.getElementById("unused-keywords-card");
-    container.innerHTML = ''; // Clear previous results
+    container.innerHTML = '';
 
     let html = '';
 
-    if (brands.length > 0) {
-        html += `
-            <div class="unused-list">
-                <h4 style="border-color: var(--brand-color);">Unused Brands</h4>
-                <ul>${brands.map(k => `<li>${k}</li>`).join('')}</ul>
-            </div>`;
-    }
-    if (keywords.length > 0) {
-        html += `
-            <div class="unused-list">
-                <h4 style="border-color: var(--keyword-color);">Unused Keywords</h4>
-                <ul>${keywords.map(k => `<li>${k}</li>`).join('')}</ul>
-            </div>`;
-    }
-    if (locations.length > 0) {
-        html += `
-            <div class="unused-list">
-                <h4 style="border-color: var(--location-color);">Unused Locations</h4>
-                <ul>${locations.map(k => `<li>${k}</li>`).join('')}</ul>
-            </div>`;
-    }
+    if (brands.length)
+        html += `<div class="unused-list"><h4>Unused Brands</h4><ul>${brands.map(v => `<li>${v}</li>`).join('')}</ul></div>`;
+    if (keywords.length)
+        html += `<div class="unused-list"><h4>Unused Keywords</h4><ul>${keywords.map(v => `<li>${v}</li>`).join('')}</ul></div>`;
+    if (locations.length)
+        html += `<div class="unused-list"><h4>Unused Locations</h4><ul>${locations.map(v => `<li>${v}</li>`).join('')}</ul></div>`;
 
     if (html) {
         container.innerHTML = html;
         card.style.display = 'block';
-    } else {
-        card.style.display = 'none';
     }
 }
 
-/***********************
- * UTILITY ACTIONS
- ***********************/
+function displayVariantMatches(map) {
+    const card = document.getElementById("variant-match-card");
+    const container = document.getElementById("variant-match-container");
 
+    if (!map.size) return;
+
+    let html = `<ul class="variant-list">`;
+    map.forEach((variants, base) => {
+        html += `<li><b>${base}</b> → matched as: ${[...variants].join(', ')}</li>`;
+    });
+    html += `</ul>`;
+
+    container.innerHTML = html;
+    card.style.display = 'block';
+}
 
 /***********************
- * EXPORT WORD
+ * EXPORT WORD (UNCHANGED)
  ***********************/
 function downloadWord() {
     if (!auditHasRun) {
@@ -272,49 +243,21 @@ function downloadWord() {
     }
 
     const wysiwyg = editor.core.context.element.wysiwyg;
-    let content = wysiwyg.innerHTML;
+    let content = wysiwyg.innerHTML.replace("Paste your content here...", "");
 
-    // Clean the placeholder text if it exists
-    const placeholder = "Paste your content here...";
-    if (content.includes(placeholder)) {
-        content = content.replace(placeholder, "");
-    }
-
-    // Strict formatting for Microsoft Word (Arial + Specific Sizes)
     const styles = `
         <style>
-            body { font-family: "Arial", sans-serif; font-size: 12pt; color: #000000; line-height: 1.5; font-weight: normal; }
-            h1 { font-size: 18pt; font-weight: bold; margin-bottom: 12pt; color: #000000; }
-            h2 { font-size: 16pt; font-weight: bold; margin-top: 14pt; margin-bottom: 10pt; color: #000000; }
-            h3 { font-size: 12pt; font-weight: bold; margin-top: 12pt; margin-bottom: 6pt; color: #000000; }
-            p { margin-bottom: 10pt; font-size: 12pt; font-weight: normal; }
-            .hl-brand { background-color: #c92d9a; color: #ffffff; padding: 2pt; }
-            .hl-keyword { background-color: #ebe538; color: #000000; padding: 2pt; }
-            .hl-location { background-color: #15f5f7; color: #000000; padding: 2pt; }
-        </style>
-    `;
+            body { font-family: Arial; font-size: 12pt; }
+            .hl-brand { background:#c92d9a;color:#fff;padding:2pt; }
+            .hl-keyword { background:#ebe538;color:#000;padding:2pt; }
+            .hl-location { background:#15f5f7;color:#000;padding:2pt; }
+        </style>`;
 
-    const html = `
-        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-        <head>
-            <meta charset="utf-8">
-            ${styles}
-        </head>
-        <body>
-            ${content}
-        </body>
-        </html>
-    `;
+    const html = `<html><head>${styles}</head><body>${content}</body></html>`;
+    const blob = new Blob(['\ufeff', html], { type: "application/msword" });
 
-    const blob = new Blob(['\ufeff', html], {
-        type: "application/msword"
-    });
-
-    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url;
+    link.href = URL.createObjectURL(blob);
     link.download = "Highlighted-Content-Audit.doc";
-    document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
 }

@@ -34,7 +34,8 @@ function clearExistingHighlights(root) {
 }
 
 /**
- * FIXED Agency Mode Regex
+ * IMPROVED Agency Mode Regex
+ * Ensures strict word boundaries and handles plurals/possessives
  */
 function buildRegex(term, isAgencyMode) {
     const escapedTerm = escapeRegex(term);
@@ -45,16 +46,17 @@ function buildRegex(term, isAgencyMode) {
     const prefix = words.join(' ');
 
     let lastWordRegex;
-    // Handle Policy -> Policies
+    // Policy -> Polic(y|ies)
     if (lastWord.toLowerCase().endsWith('y')) {
         const root = lastWord.slice(0, -1);
         lastWordRegex = `${root}(?:y|ies)`;
     } else {
-        // Handle Vehicle -> Vehicles
+        // Vehicle -> Vehicle(s|es|'s)
         lastWordRegex = `${lastWord}(?:s|es|'s)?`;
     }
 
-    return prefix ? `\\b${prefix} ${lastWordRegex}\\b` : `\\b${lastWordRegex}\\b`;
+    // Reconstruct with word boundaries to avoid partial word matches
+    return prefix ? `\\b${prefix}\\s+${lastWordRegex}\\b` : `\\b${lastWordRegex}\\b`;
 }
 
 function findMatches(text, list, type, matchesArray, isAgencyMode) {
@@ -68,7 +70,7 @@ function findMatches(text, list, type, matchesArray, isAgencyMode) {
                 length: m[0].length,
                 type: type,
                 text: m[0],
-                term: term // This links "NDIS Policies" back to "NDIS Policy"
+                term: term // Original keyword from your input list
             });
         }
     });
@@ -94,7 +96,9 @@ function highlightText() {
     const locations = parseLines(locationInput);
     
     let stats = { brand: 0, keyword: 0, location: 0 };
-    const usedTerms = new Set(); // To track what to remove from "Unused"
+    
+    // Using a Set for Case-Insensitive tracking
+    const usedTermsNormalized = new Set(); 
 
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = content;
@@ -112,7 +116,7 @@ function highlightText() {
         findMatches(text, keywords, 'hl-keyword', allMatches, isAgencyMode);
         findMatches(text, locations, 'hl-location', allMatches, isAgencyMode);
 
-        // Sort by length (longest phrases first) so "NDIS Policy" beats "Policy"
+        // Sort by position, then by length (longest match wins)
         allMatches.sort((a, b) => (a.start - b.start) || (b.length - a.length));
 
         const winners = [];
@@ -122,7 +126,9 @@ function highlightText() {
             if (match.start >= lastIndex) {
                 winners.push(match);
                 lastIndex = match.start + match.length;
-                usedTerms.add(match.term); // Marks the original keyword as "Used"
+                
+                // Track original keyword as used (Normalized for safety)
+                usedTermsNormalized.add(match.term.toLowerCase()); 
 
                 if (match.type === 'hl-brand') stats.brand++;
                 if (match.type === 'hl-keyword') stats.keyword++;
@@ -146,17 +152,19 @@ function highlightText() {
         }
     });
 
-    // Update UI
+    // Update Stats
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
 
+    // Filter Unused List (Normalized check)
     displayUnusedKeywords(
-        brands.filter(b => !usedTerms.has(b)),
-        keywords.filter(k => !usedTerms.has(k)),
-        locations.filter(l => !usedTerms.has(l))
+        brands.filter(b => !usedTermsNormalized.has(b.toLowerCase())),
+        keywords.filter(k => !usedTermsNormalized.has(k.toLowerCase())),
+        locations.filter(l => !usedTermsNormalized.has(l.toLowerCase()))
     );
 
+    // Sync to Editor
     editor.setContents(tempDiv.innerHTML);
     auditHasRun = true;
 }
@@ -201,9 +209,9 @@ function downloadWord() {
     const styles = `
         <style>
             body { font-family: "Arial", sans-serif; font-size: 12pt; color: #000000; line-height: 1.5; }
-            .hl-brand { background-color: #c92d9a; color: #ffffff; }
-            .hl-keyword { background-color: #ebe538; color: #000000; }
-            .hl-location { background-color: #15f5f7; color: #000000; }
+            .hl-brand { background-color: #c92d9a; color: #ffffff; padding: 1px 3px; }
+            .hl-keyword { background-color: #ebe538; color: #000000; padding: 1px 3px; }
+            .hl-location { background-color: #15f5f7; color: #000000; padding: 1px 3px; }
         </style>
     `;
 

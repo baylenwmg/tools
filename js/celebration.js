@@ -41,20 +41,29 @@ function clearExistingHighlights(root) {
 
 /**
  * Updated Core Scanner: 
- * Uses a leading word boundary \b to ensure we start at the beginning of a word,
- * but removes the trailing boundary so that "Mechanic" matches "Mechanics".
- * It highlights exactly the length of the term provided.
+ * Ensures "All Sydney Mobile Mechanic" matches "All Sydney Mobile Mechanics"
+ * but only highlights the exact length of the term.
  */
 function findMatches(text, list, type, matchesArray) {
     list.forEach(term => {
-        // \b ensures we don't match the middle of a word (e.g., 'car' in 'scar')
-        // We remove the trailing \b to allow matches followed by 's', 'es', etc.
-        const regex = new RegExp(`\\b${escapeRegex(term)}`, "gi");
+        if (!term) return;
+        
+        // \b ensures we start at the beginning of the word.
+        // No \b at the end allows the match to succeed even if there is an 's'.
+        const escapedTerm = escapeRegex(term);
+        const regex = new RegExp(`\\b${escapedTerm}`, "gi");
+        
         let m;
+        // Resetting lastIndex just in case, though defining inside forEach usually handles it
+        regex.lastIndex = 0; 
+
         while ((m = regex.exec(text)) !== null) {
+            // Prevent infinite loops if regex matches empty string
+            if (m.index === regex.lastIndex) regex.lastIndex++;
+
             matchesArray.push({
                 start: m.index,
-                length: term.length, // Strictly highlight only the length of your keyword
+                length: term.length, // HIGHLIGHT EXACT LENGTH ONLY
                 type: type,
                 text: text.substring(m.index, m.index + term.length),
                 term: term 

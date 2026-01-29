@@ -42,22 +42,23 @@ function clearExistingHighlights(root) {
 /**
  * Exact String Matcher:
  * Matches the exact sequence of characters anywhere in the text.
- * No word boundaries (\b) used, so "Mechanic" will match "Mechanic", "Mechanics", 
+ * No word boundaries used, so "Mechanic" will match "Mechanic", "Mechanics", 
  * or even "Telemechanic".
  */
 function findMatches(text, list, type, matchesArray) {
     list.forEach(term => {
-        if (!term) return;
+        if (!term || term.trim() === "") return;
         
-        // Removed \b so it matches the exact string anywhere
+        // Removed \b to ensure it matches the exact character string anywhere
         const escapedTerm = escapeRegex(term);
         const regex = new RegExp(escapedTerm, "gi");
         
         let m;
+        // Reset lastIndex for safety
         regex.lastIndex = 0; 
 
         while ((m = regex.exec(text)) !== null) {
-            // Safety to prevent infinite loops
+            // Safety to prevent infinite loops on empty matches
             if (m.index === regex.lastIndex) regex.lastIndex++;
 
             matchesArray.push({
@@ -70,6 +71,7 @@ function findMatches(text, list, type, matchesArray) {
         }
     });
 }
+
 /***********************
  * MAIN ACTION
  ***********************/

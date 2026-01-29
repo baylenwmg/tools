@@ -9,103 +9,161 @@ let auditHasRun = false;
 function parseLines(input) {
     return [...new Set(
         input
-        .split(/\n+|\\n/)
-        .map(v => v.trim())
-        .filter(Boolean)
+            .split(/\n+|\\n/)
+            .map(v => v.trim())
+            .filter(Boolean)
     )];
+}
+
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function walkTextNodes(node, cb) {
+    if (node.nodeType === Node.TEXT_NODE) {
+        cb(node);
+    } else {
+        Array.from(node.childNodes).forEach(n => walkTextNodes(n, cb));
+    }
+}
+
+/**
+ * Clears existing highlight spans without losing text content
+ */
+function clearExistingHighlights(root) {
+    const spans = root.querySelectorAll(".hl-brand, .hl-keyword, .hl-location");
+    spans.forEach(span => {
+        const textNode = document.createTextNode(span.textContent);
+        span.parentNode.replaceChild(textNode, span);
+    });
+    root.normalize();
+}
+
+/**
+ * Updated Core Scanner: 
+ * Uses a leading word boundary \b to ensure we start at the beginning of a word,
+ * but removes the trailing boundary so that "Mechanic" matches "Mechanics".
+ * It highlights exactly the length of the term provided.
+ */
+function findMatches(text, list, type, matchesArray) {
+    list.forEach(term => {
+        // \b ensures we don't match the middle of a word (e.g., 'car' in 'scar')
+        // We remove the trailing \b to allow matches followed by 's', 'es', etc.
+        const regex = new RegExp(`\\b${escapeRegex(term)}`, "gi");
+        let m;
+        while ((m = regex.exec(text)) !== null) {
+            matchesArray.push({
+                start: m.index,
+                length: term.length, // Strictly highlight only the length of your keyword
+                type: type,
+                text: text.substring(m.index, m.index + term.length),
+                term: term 
+            });
+        }
+    });
 }
 
 /***********************
  * MAIN ACTION
  ***********************/
-async function highlightText() {
-    // 1. Get Inputs & Validate
+function highlightText() {
     const brandInput = document.getElementById("brand").value.trim();
     const keywordInput = document.getElementById("keywords").value.trim();
     const locationInput = document.getElementById("locations").value.trim();
-    const isAgencyMode = document.getElementById('agency-mode-toggle').checked;
-    const contentEl = editor.core.context.element.wysiwyg;
+    const content = getEditorContent();
 
-    if (!brandInput || !keywordInput || !contentEl.textContent.trim()) {
+    if (!brandInput || !keywordInput || !content.trim()) {
         alert("Please provide Brand Names, Keywords, and Content to run the audit.");
         return;
     }
 
-    // 2. Setup Data
     const brands = parseLines(brandInput);
     const keywords = parseLines(keywordInput);
     const locations = parseLines(locationInput);
-    const instance = new Mark(contentEl);
-    
+    let stats = { brand: 0, keyword: 0, location: 0 };
+    const usedBrands = new Set();
+    const usedKeywords = new Set();
+    const usedLocations = new Set();
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+
+    clearExistingHighlights(tempDiv);
     document.getElementById("unused-keywords-card").style.display = 'none';
 
-    // 3. Unmark previous highlights
-    await new Promise(resolve => instance.unmark({
-        done: resolve
-    }));
+    const textNodes = [];
+    walkTextNodes(tempDiv, n => textNodes.push(n));
 
-    // 4. Combine and sort all terms by length (desc) to prioritize longer matches
-    const allTerms = [
-        ...brands.map(t => ({
-            term: t,
-            className: 'hl-brand',
-            type: 'brand'
-        })),
-        ...keywords.map(t => ({
-            term: t,
-            className: 'hl-keyword',
-            type: 'keyword'
-        })),
-        ...locations.map(t => ({
-            term: t,
-            className: 'hl-location',
-            type: 'location'
-        }))
-    ].sort((a, b) => b.term.length - a.term.length);
+    textNodes.forEach(node => {
+        const text = node.nodeValue;
+        let allMatches = [];
 
-    let stats = {
-        brand: 0,
-        keyword: 0,
-        location: 0
-    };
-    const usedOriginalTerms = new Set();
+        findMatches(text, brands, 'hl-brand', allMatches);
+        findMatches(text, keywords, 'hl-keyword', allMatches);
+        findMatches(text, locations, 'hl-location', allMatches);
 
-    // 5. Mark each term one by one to handle overlaps correctly
-    for (const { term, className, type }
-        of allTerms) {
-        let matchesFound = 0;
-        await new Promise(resolve => {
-            instance.mark(term, {
-                element: 'span',
-                className: className,
-                separateWordSearch: false,
-                accuracy: isAgencyMode ? 'complementary' : 'exactly',
-                iframes: false,
-                filter: (textNode) => textNode.parentElement.nodeName !== 'SPAN',
-                each: () => matchesFound++,
-                done: resolve
-            });
+        const typePriority = { 'hl-brand': 1, 'hl-keyword': 2, 'hl-location': 3 };
+
+        allMatches.sort((a, b) => {
+            return (a.start - b.start) ||
+                   (b.length - a.length) ||
+                   (typePriority[a.type] - typePriority[b.type]);
         });
 
-        if (matchesFound > 0) {
-            usedOriginalTerms.add(term);
-            stats[type] += matchesFound;
-        }
-    }
+        const winners = [];
+        let lastIndex = 0;
 
-    // 6. Update UI
+        allMatches.forEach(match => {
+            if (match.start >= lastIndex) {
+                winners.push(match);
+                lastIndex = match.start + match.length;
+
+                if (match.type === 'hl-brand') {
+                    stats.brand++;
+                    usedBrands.add(match.term);
+                } else if (match.type === 'hl-keyword') {
+                    stats.keyword++;
+                    usedKeywords.add(match.term);
+                } else if (match.type === 'hl-location') {
+                    stats.location++;
+                    usedLocations.add(match.term);
+                }
+            }
+        });
+
+        if (winners.length > 0) {
+            const frag = document.createDocumentFragment();
+            let cursor = 0;
+
+            winners.forEach(m => {
+                frag.appendChild(document.createTextNode(text.slice(cursor, m.start)));
+                const span = document.createElement("span");
+                span.className = m.type;
+                span.textContent = text.slice(m.start, m.start + m.length);
+                frag.appendChild(span);
+                cursor = m.start + m.length;
+            });
+
+            frag.appendChild(document.createTextNode(text.slice(cursor)));
+            node.parentNode.replaceChild(frag, node);
+        }
+    });
+
     document.getElementById("count-brand").textContent = stats.brand;
     document.getElementById("count-keyword").textContent = stats.keyword;
     document.getElementById("count-location").textContent = stats.location;
 
-    const unusedBrands = brands.filter(b => !usedOriginalTerms.has(b));
-    const unusedKeywords = keywords.filter(k => !usedOriginalTerms.has(k));
-    const unusedLocations = locations.filter(l => !usedOriginalTerms.has(l));
+    const unusedBrands = brands.filter(b => !usedBrands.has(b));
+    const unusedKeywords = keywords.filter(k => !usedKeywords.has(k));
+    const unusedLocations = locations.filter(l => !usedLocations.has(l));
+
     displayUnusedKeywords(unusedBrands, unusedKeywords, unusedLocations);
+
+    editor.setContents('');
+    editor.insertHTML(tempDiv.innerHTML, true);
 
     auditHasRun = true;
 }
-
 
 /***********************
  * UNUSED KEYWORDS DISPLAY
@@ -113,7 +171,7 @@ async function highlightText() {
 function displayUnusedKeywords(brands, keywords, locations) {
     const container = document.getElementById("unused-keywords-container");
     const card = document.getElementById("unused-keywords-card");
-    container.innerHTML = ''; // Clear previous results
+    container.innerHTML = ''; 
 
     let html = '';
 
@@ -155,17 +213,15 @@ function downloadWord() {
         alert("Please run the 'Run Highlight' audit before exporting.");
         return;
     }
-    
+
     const wysiwyg = editor.core.context.element.wysiwyg;
     let content = wysiwyg.innerHTML;
 
-    // Clean the placeholder text if it exists
     const placeholder = "Paste your content here...";
     if (content.includes(placeholder)) {
         content = content.replace(placeholder, "");
     }
 
-    // Strict formatting for Microsoft Word (Arial + Specific Sizes)
     const styles = `
         <style>
             body { font-family: "Arial", sans-serif; font-size: 12pt; color: #000000; line-height: 1.5; font-weight: normal; }
@@ -173,9 +229,9 @@ function downloadWord() {
             h2 { font-size: 16pt; font-weight: bold; margin-top: 14pt; margin-bottom: 10pt; color: #000000; }
             h3 { font-size: 12pt; font-weight: bold; margin-top: 12pt; margin-bottom: 6pt; color: #000000; }
             p { margin-bottom: 10pt; font-size: 12pt; font-weight: normal; }
-            .hl-brand { background-color: #d946ef; color: #ffffff; padding: 2pt; }
-            .hl-keyword { background-color: #f59e0b; color: #000000; padding: 2pt; }
-            .hl-location { background-color: #10b981; color: #000000; padding: 2pt; }
+            .hl-brand { background-color: #c92d9a; color: #ffffff; padding: 2pt; }
+            .hl-keyword { background-color: #ebe538; color: #000000; padding: 2pt; }
+            .hl-location { background-color: #15f5f7; color: #000000; padding: 2pt; }
         </style>
     `;
 

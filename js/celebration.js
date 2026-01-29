@@ -40,30 +40,29 @@ function clearExistingHighlights(root) {
 }
 
 /**
- * Updated Core Scanner: 
- * Ensures "All Sydney Mobile Mechanic" matches "All Sydney Mobile Mechanics"
- * but only highlights the exact length of the term.
+ * Exact String Matcher:
+ * Matches the exact sequence of characters anywhere in the text.
+ * No word boundaries (\b) used, so "Mechanic" will match "Mechanic", "Mechanics", 
+ * or even "Telemechanic".
  */
 function findMatches(text, list, type, matchesArray) {
     list.forEach(term => {
         if (!term) return;
         
-        // \b ensures we start at the beginning of the word.
-        // No \b at the end allows the match to succeed even if there is an 's'.
+        // Removed \b so it matches the exact string anywhere
         const escapedTerm = escapeRegex(term);
-        const regex = new RegExp(`\\b${escapedTerm}`, "gi");
+        const regex = new RegExp(escapedTerm, "gi");
         
         let m;
-        // Resetting lastIndex just in case, though defining inside forEach usually handles it
         regex.lastIndex = 0; 
 
         while ((m = regex.exec(text)) !== null) {
-            // Prevent infinite loops if regex matches empty string
+            // Safety to prevent infinite loops
             if (m.index === regex.lastIndex) regex.lastIndex++;
 
             matchesArray.push({
                 start: m.index,
-                length: term.length, // HIGHLIGHT EXACT LENGTH ONLY
+                length: term.length, // Highlights only the exact characters entered
                 type: type,
                 text: text.substring(m.index, m.index + term.length),
                 term: term 
@@ -71,7 +70,6 @@ function findMatches(text, list, type, matchesArray) {
         }
     });
 }
-
 /***********************
  * MAIN ACTION
  ***********************/

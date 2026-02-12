@@ -5,6 +5,7 @@
 <title>Project Dashboard</title>
 
 <style>
+
 body{
 font-family:Arial;
 background:#f4f6f8;
@@ -18,17 +19,25 @@ padding:15px;
 font-size:20px;
 }
 
+.logout{
+float:right;
+background:red;
+padding:5px 10px;
+cursor:pointer;
+border-radius:4px;
+}
+
 .container{
 padding:20px;
 }
 
 .login-box{
-width:300px;
+width:320px;
 margin:100px auto;
 background:white;
 padding:20px;
 border-radius:8px;
-box-shadow:0 0 10px rgba(0,0,0,0.1);
+box-shadow:0 0 10px rgba(0,0,0,0.15);
 }
 
 input{
@@ -56,22 +65,18 @@ th, td{
 padding:8px;
 border:1px solid #ddd;
 font-size:14px;
+text-align:left;
 }
 
 select{
 width:100%;
+padding:4px;
 }
 
 .hidden{
 display:none;
 }
 
-.logout{
-float:right;
-background:red;
-padding:5px 10px;
-cursor:pointer;
-}
 </style>
 
 </head>
@@ -79,9 +84,15 @@ cursor:pointer;
 <body>
 
 <div class="header">
+
 Project Dashboard
+
 <span class="logout hidden" onclick="logout()">Logout</span>
+
 </div>
+
+
+<!-- LOGIN -->
 
 <div id="login" class="login-box">
 
@@ -94,82 +105,77 @@ Project Dashboard
 
 </div>
 
+
+<!-- DASHBOARD -->
+
 <div id="dashboard" class="container hidden">
 
 <h3 id="welcome"></h3>
 
-<table id="table">
+<table>
 
 <thead>
+
 <tr>
 
-<th>Project</th>
-<th>Transfer Email</th>
+<th>Project Name</th>
+<th>Transfer Ownership Email</th>
 
 <th>Clarity Setup</th>
-<th>Clarity Ownership</th>
+<th>Clarity Ownership Access Shared</th>
 
 <th>Bing Setup</th>
-<th>Bing Ownership</th>
+<th>Bing Ownership Access Shared</th>
 
 <th>GTM Access</th>
-<th>GTM Ownership</th>
+<th>GTM Ownership Access Shared</th>
 
 </tr>
+
 </thead>
 
-<tbody></tbody>
+<tbody id="tbody"></tbody>
 
 </table>
 
 </div>
 
+
 <script>
 
-// USERS
+
+// YOUR GOOGLE SCRIPT API
+const API = "https://script.google.com/macros/s/AKfycbyoHEPOPy89C0ST9KjYBMDPFmJoUVu0EE0i6A0Q8vCPxYi4kPzU07ECJvYaBmhS_qiY/exec";
+
+
+// USER LOGIN DATABASE
+
 const users = {
 
-admin:{
-password:"admin@123",
-name:"Admin"
-},
+admin:{password:"admin@123",name:"Admin"},
 
-user001:{password:"lrgUeJyCZ1", name:"Dipen"},
-user002:{password:"s6xrLqjSaR", name:"Dishank"},
-user003:{password:"zwfTRCO3Hp", name:"Harshil"},
-user004:{password:"ll6qBvtf9E", name:"Jaimin"},
-user005:{password:"r4WoT6wMZ3", name:"Kushal"},
-user006:{password:"IaIoXs8ToJ", name:"Nikhil R"},
-user007:{password:"nWEyIeRGc3", name:"Nitin"},
-user008:{password:"gAH2WJ50ep", name:"Pratik"},
-user009:{password:"lltLX0aTXP", name:"Prerak"},
-user010:{password:"JEIBPrBpAj", name:"Riddhi"},
-user011:{password:"dIwmBesG6P", name:"Rohan"},
-user012:{password:"Ss8bDRtey0", name:"Shefali"},
-user013:{password:"h9T6bZnNmr", name:"Twinkle"}
+user001:{password:"lrgUeJyCZ1",name:"Dipen"},
+user002:{password:"s6xrLqjSaR",name:"Dishank"},
+user003:{password:"zwfTRCO3Hp",name:"Harshil"},
+user004:{password:"ll6qBvtf9E",name:"Jaimin"},
+user005:{password:"r4WoT6wMZ3",name:"Kushal"},
+user006:{password:"IaIoXs8ToJ",name:"Nikhil R"},
+user007:{password:"nWEyIeRGc3",name:"Nitin"},
+user008:{password:"gAH2WJ50ep",name:"Pratik"},
+user009:{password:"lltLX0aTXP",name:"Prerak"},
+user010:{password:"JEIBPrBpAj",name:"Riddhi"},
+user011:{password:"dIwmBesG6P",name:"Rohan"},
+user012:{password:"Ss8bDRtey0",name:"Shefali"},
+user013:{password:"h9T6bZnNmr",name:"Twinkle"}
 
 };
 
 
-// SAMPLE DATA
-let projects = [
-
-{
-project:"iCar Automotive",
-associate:"Dipen",
-email:"wmg.seoguru.8@gmail.com",
-clarity:"Not Sure",
-clarityOwner:"Not Sure",
-bing:"Not Sure",
-bingOwner:"Not Sure",
-gtm:"Not Sure",
-gtmOwner:"Not Sure"
-}
-
-];
+let projects = [];
 
 
-// LOGIN
+// LOGIN FUNCTION
+
 function login(){
 
 let id=document.getElementById("userid").value;
@@ -183,7 +189,7 @@ showDashboard();
 
 }else{
 
-alert("Invalid login");
+alert("Invalid Login");
 
 }
 
@@ -191,7 +197,8 @@ alert("Invalid login");
 
 
 // SHOW DASHBOARD
-function showDashboard(){
+
+async function showDashboard(){
 
 document.getElementById("login").classList.add("hidden");
 document.getElementById("dashboard").classList.remove("hidden");
@@ -202,15 +209,29 @@ let user=localStorage.user;
 
 document.getElementById("welcome").innerText="Welcome "+users[user].name;
 
-loadTable();
+await loadData();
 
 }
 
 
-// LOAD TABLE
-function loadTable(){
+// LOAD DATA FROM GOOGLE SHEET
 
-let tbody=document.querySelector("#table tbody");
+async function loadData(){
+
+const res = await fetch(API);
+
+projects = await res.json();
+
+renderTable();
+
+}
+
+
+// RENDER TABLE
+
+function renderTable(){
+
+const tbody=document.getElementById("tbody");
 
 tbody.innerHTML="";
 
@@ -218,27 +239,27 @@ let user=localStorage.user;
 
 projects.forEach((p,index)=>{
 
-if(user!="admin" && p.associate!=users[user].name) return;
+if(user!="admin" && p["Associate Name"]!=users[user].name) return;
 
 let row=document.createElement("tr");
 
 row.innerHTML=`
 
-<td>${p.project}</td>
+<td>${p["Project Name"]}</td>
 
-<td>${p.email}</td>
+<td>${p["Transfer Ownership Email"]}</td>
 
-<td>${dropdown(index,"clarity",["Yes","No","Not Sure"])}</td>
+<td>${dropdown(index,"Clarity Setup",["Yes","No","Not Sure"])}</td>
 
-<td>${dropdown(index,"clarityOwner",["Already Given","Done","I can’t give","I not have that project"])}</td>
+<td>${dropdown(index,"Clarity Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
 
-<td>${dropdown(index,"bing",["Yes","No","Not Sure"])}</td>
+<td>${dropdown(index,"Bing Setup",["Yes","No","Not Sure"])}</td>
 
-<td>${dropdown(index,"bingOwner",["Already Given","Done","I can’t give","I not have that project"])}</td>
+<td>${dropdown(index,"Bing Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
 
-<td>${dropdown(index,"gtm",["Yes","No","Not Sure"])}</td>
+<td>${dropdown(index,"GTM Access",["Yes","No","Not Sure"])}</td>
 
-<td>${dropdown(index,"gtmOwner",["Already Given","Done","I can’t give","I not have that project"])}</td>
+<td>${dropdown(index,"GTM Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
 
 `;
 
@@ -249,14 +270,17 @@ tbody.appendChild(row);
 }
 
 
-// DROPDOWN
+// DROPDOWN GENERATOR
+
 function dropdown(index,field,options){
+
+let value=projects[index][field] || "Not Sure";
 
 let html=`<select onchange="update(${index},'${field}',this.value)">`;
 
-options.forEach(o=>{
+options.forEach(opt=>{
 
-html+=`<option ${projects[index][field]==o?"selected":""}>${o}</option>`;
+html+=`<option ${value==opt?"selected":""}>${opt}</option>`;
 
 });
 
@@ -267,17 +291,25 @@ return html;
 }
 
 
-// UPDATE
-function update(index,field,value){
+// UPDATE GOOGLE SHEET
+
+async function update(index,field,value){
 
 projects[index][field]=value;
 
-localStorage.projects=JSON.stringify(projects);
+await fetch(API,{
+
+method:"POST",
+
+body:JSON.stringify(projects[index])
+
+});
 
 }
 
 
 // LOGOUT
+
 function logout(){
 
 localStorage.clear();
@@ -286,18 +318,14 @@ location.reload();
 }
 
 
-// AUTO LOAD
-if(localStorage.projects){
-
-projects=JSON.parse(localStorage.projects);
-
-}
+// AUTO LOGIN
 
 if(localStorage.user){
 
 showDashboard();
 
 }
+
 
 </script>
 

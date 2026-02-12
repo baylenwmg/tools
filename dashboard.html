@@ -40,7 +40,7 @@ border-radius:8px;
 box-shadow:0 0 10px rgba(0,0,0,0.15);
 }
 
-input, select{
+input{
 padding:8px;
 margin:5px;
 }
@@ -67,6 +67,10 @@ border:1px solid #ddd;
 font-size:14px;
 }
 
+select{
+width:100%;
+}
+
 .hidden{
 display:none;
 }
@@ -74,8 +78,8 @@ display:none;
 .controls{
 background:white;
 padding:10px;
-border-radius:6px;
 margin-bottom:10px;
+border-radius:6px;
 }
 
 </style>
@@ -115,9 +119,14 @@ Project Dashboard
 
 <div id="adminControls" class="controls hidden">
 
-<input type="text" id="searchBox" placeholder="Search Project..." onkeyup="filterProjects()">
+<input
+type="text"
+id="searchBox"
+placeholder="Search Project..."
+onkeyup="adminFilterProjects()"
+>
 
-<select id="associateFilter" onchange="filterProjects()">
+<select id="associateFilter" onchange="adminFilterProjects()">
 <option value="">All Associates</option>
 </select>
 
@@ -131,21 +140,23 @@ Completion: <b id="completionPercent">0%</b>
 <table>
 
 <thead>
+
 <tr>
 
 <th>Project Name</th>
 <th>Transfer Ownership Email</th>
 
 <th>Clarity Setup</th>
-<th>Clarity Ownership</th>
+<th>Clarity Ownership Access Shared</th>
 
 <th>Bing Setup</th>
-<th>Bing Ownership</th>
+<th>Bing Ownership Access Shared</th>
 
 <th>GTM Access</th>
-<th>GTM Ownership</th>
+<th>GTM Ownership Access Shared</th>
 
 </tr>
+
 </thead>
 
 <tbody id="tbody"></tbody>
@@ -185,22 +196,26 @@ user013:{password:"h9T6bZnNmr",name:"Twinkle"}
 
 
 let projects=[];
-let filteredProjects=[];
+let adminFilteredProjects=[];
 
 
 // LOGIN
 
 function login(){
 
-let id=userid.value;
-let pass=password.value;
+let id=document.getElementById("userid").value;
+let pass=document.getElementById("password").value;
 
-if(users[id] && users[id].password==pass){
+if(users[id] && users[id].password===pass){
 
 localStorage.user=id;
 showDashboard();
 
-}else alert("Invalid login");
+}else{
+
+alert("Invalid Login");
+
+}
 
 }
 
@@ -209,19 +224,28 @@ showDashboard();
 
 async function showDashboard(){
 
-login.classList.add("hidden");
-dashboard.classList.remove("hidden");
+document.getElementById("login").classList.add("hidden");
+document.getElementById("dashboard").classList.remove("hidden");
 
 document.querySelector(".logout").classList.remove("hidden");
 
 let user=localStorage.user;
 
-welcome.innerText="Welcome "+users[user].name;
-
-if(user=="admin")
-adminControls.classList.remove("hidden");
+document.getElementById("welcome").innerText="Welcome "+users[user].name;
 
 await loadData();
+
+if(user==="admin"){
+
+document.getElementById("adminControls").classList.remove("hidden");
+
+adminFilteredProjects=[...projects];
+
+adminLoadAssociateFilter();
+
+adminCalculateCompletion();
+
+}
 
 }
 
@@ -230,34 +254,139 @@ await loadData();
 
 async function loadData(){
 
-let res=await fetch(API);
+const res=await fetch(API);
+
 projects=await res.json();
 
-filteredProjects=[...projects];
-
-if(localStorage.user=="admin")
-loadAssociateFilter();
-
 renderTable();
-calculateCompletion();
 
 }
 
 
-// RENDER TABLE
+// RENDER TABLE (ORIGINAL SAFE)
 
 function renderTable(){
+
+const tbody=document.getElementById("tbody");
 
 tbody.innerHTML="";
 
 let user=localStorage.user;
 
-filteredProjects.forEach((p)=>{
+projects.forEach((p,index)=>{
 
-if(
-user!="admin" &&
-p["Associate Name"]?.trim().toLowerCase()!=users[user].name.toLowerCase()
-) return;
+if(user!="admin" &&
+p["Associate Name"]?.trim().toLowerCase()!==users[user].name.toLowerCase())
+return;
+
+let row=document.createElement("tr");
+
+row.innerHTML=`
+
+<td>${p["Project Name"]}</td>
+
+<td>${p["Transfer Ownership Email"]}</td>
+
+<td>${dropdown(index,"Clarity Setup",["Yes","No","Not Sure"])}</td>
+
+<td>${dropdown(index,"Clarity Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
+
+<td>${dropdown(index,"Bing Setup",["Yes","No","Not Sure"])}</td>
+
+<td>${dropdown(index,"Bing Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
+
+<td>${dropdown(index,"GTM Access",["Yes","No","Not Sure"])}</td>
+
+<td>${dropdown(index,"GTM Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
+
+`;
+
+tbody.appendChild(row);
+
+});
+
+}
+
+
+// DROPDOWN (ORIGINAL SAFE)
+
+function dropdown(index,field,options){
+
+let value=projects[index][field]||"Not Sure";
+
+let html=`<select onchange="update(${index},'${field}',this.value)">`;
+
+options.forEach(opt=>{
+
+html+=`<option ${value==opt?"selected":""}>${opt}</option>`;
+
+});
+
+html+="</select>";
+
+return html;
+
+}
+
+
+// UPDATE (ORIGINAL SAFE)
+
+async function update(index,field,value){
+
+projects[index][field]=value;
+
+await fetch(API,{
+method:"POST",
+body:JSON.stringify(projects[index])
+});
+
+}
+
+
+// LOGOUT
+
+function logout(){
+
+localStorage.clear();
+location.reload();
+
+}
+
+
+// ADMIN FILTER
+
+function adminFilterProjects(){
+
+let search=document.getElementById("searchBox").value.toLowerCase();
+
+let associate=document.getElementById("associateFilter").value;
+
+adminFilteredProjects=projects.filter(p=>{
+
+let matchSearch=!search||p["Project Name"].toLowerCase().includes(search);
+
+let matchAssociate=!associate||p["Associate Name"]===associate;
+
+return matchSearch&&matchAssociate;
+
+});
+
+adminRenderFiltered();
+
+adminCalculateCompletion();
+
+}
+
+
+// RENDER FILTERED
+
+function adminRenderFiltered(){
+
+const tbody=document.getElementById("tbody");
+
+tbody.innerHTML="";
+
+adminFilteredProjects.forEach(p=>{
 
 let index=projects.indexOf(p);
 
@@ -290,73 +419,22 @@ tbody.innerHTML+=`
 }
 
 
-// DROPDOWN
-
-function dropdown(index,field,options){
-
-let value=projects[index][field]||"Not Sure";
-
-let html=`<select onchange="update(${index},'${field}',this.value)">`;
-
-options.forEach(o=>{
-html+=`<option ${value==o?"selected":""}>${o}</option>`;
-});
-
-return html+"</select>";
-
-}
-
-
-// UPDATE
-
-async function update(index,field,value){
-
-projects[index][field]=value;
-
-await fetch(API,{
-method:"POST",
-body:JSON.stringify(projects[index])
-});
-
-calculateCompletion();
-
-}
-
-
-// FILTER
-
-function filterProjects(){
-
-let search=searchBox.value.toLowerCase();
-let associate=associateFilter.value;
-
-filteredProjects=projects.filter(p=>{
-
-let s=!search || p["Project Name"].toLowerCase().includes(search);
-let a=!associate || p["Associate Name"]==associate;
-
-return s && a;
-
-});
-
-renderTable();
-calculateCompletion();
-
-}
-
-
 // LOAD ASSOCIATE FILTER
 
-function loadAssociateFilter(){
+function adminLoadAssociateFilter(){
+
+let filter=document.getElementById("associateFilter");
 
 let set=new Set();
 
 projects.forEach(p=>set.add(p["Associate Name"]));
 
-associateFilter.innerHTML='<option value="">All Associates</option>';
+filter.innerHTML='<option value="">All Associates</option>';
 
 set.forEach(a=>{
-associateFilter.innerHTML+=`<option>${a}</option>`;
+
+filter.innerHTML+=`<option>${a}</option>`;
+
 });
 
 }
@@ -364,35 +442,33 @@ associateFilter.innerHTML+=`<option>${a}</option>`;
 
 // COMPLETION
 
-function calculateCompletion(){
-
-if(localStorage.user!="admin") return;
+function adminCalculateCompletion(){
 
 let total=projects.length;
 let done=0;
 
 projects.forEach(p=>{
-if(p["Clarity Setup"]=="Yes" && p["Bing Setup"]=="Yes" && p["GTM Access"]=="Yes")
+
+if(p["Clarity Setup"]==="Yes" &&
+p["Bing Setup"]==="Yes" &&
+p["GTM Access"]==="Yes")
 done++;
+
 });
 
-completionPercent.innerText=Math.round((done/total)*100)+"%";
+document.getElementById("completionPercent").innerText=
+Math.round((done/total)*100)+"%";
 
-}
-
-
-// LOGOUT
-
-function logout(){
-localStorage.clear();
-location.reload();
 }
 
 
 // AUTO LOGIN
 
-if(localStorage.user)
+if(localStorage.user){
+
 showDashboard();
+
+}
 
 
 </script>

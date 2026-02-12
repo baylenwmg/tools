@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Project Dashboard</title>
+
+<style>
+body{
+font-family:Arial;
+background:#f4f6f8;
+margin:0;
+}
+
+.header{
+background:#24292e;
+color:white;
+padding:15px;
+font-size:20px;
+}
+
+.container{
+padding:20px;
+}
+
+.login-box{
+width:300px;
+margin:100px auto;
+background:white;
+padding:20px;
+border-radius:8px;
+box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+input{
+width:100%;
+padding:10px;
+margin:5px 0;
+}
+
+button{
+background:#2ea44f;
+color:white;
+border:none;
+padding:10px;
+cursor:pointer;
+width:100%;
+}
+
+table{
+width:100%;
+background:white;
+border-collapse:collapse;
+}
+
+th, td{
+padding:8px;
+border:1px solid #ddd;
+font-size:14px;
+}
+
+select{
+width:100%;
+}
+
+.hidden{
+display:none;
+}
+
+.logout{
+float:right;
+background:red;
+padding:5px 10px;
+cursor:pointer;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+Project Dashboard
+<span class="logout hidden" onclick="logout()">Logout</span>
+</div>
+
+<div id="login" class="login-box">
+
+<h3>Login</h3>
+
+<input id="userid" placeholder="Login ID">
+<input id="password" type="password" placeholder="Password">
+
+<button onclick="login()">Login</button>
+
+</div>
+
+<div id="dashboard" class="container hidden">
+
+<h3 id="welcome"></h3>
+
+<table id="table">
+
+<thead>
+<tr>
+
+<th>Project</th>
+<th>Transfer Email</th>
+
+<th>Clarity Setup</th>
+<th>Clarity Ownership</th>
+
+<th>Bing Setup</th>
+<th>Bing Ownership</th>
+
+<th>GTM Access</th>
+<th>GTM Ownership</th>
+
+</tr>
+</thead>
+
+<tbody></tbody>
+
+</table>
+
+</div>
+
+<script>
+
+// USERS
+const users = {
+
+admin:{
+password:"admin@123",
+name:"Admin"
+},
+
+user001:{password:"lrgUeJyCZ1", name:"Dipen"},
+user002:{password:"s6xrLqjSaR", name:"Dishank"},
+user003:{password:"zwfTRCO3Hp", name:"Harshil"},
+user004:{password:"ll6qBvtf9E", name:"Jaimin"},
+user005:{password:"r4WoT6wMZ3", name:"Kushal"},
+user006:{password:"IaIoXs8ToJ", name:"Nikhil R"},
+user007:{password:"nWEyIeRGc3", name:"Nitin"},
+user008:{password:"gAH2WJ50ep", name:"Pratik"},
+user009:{password:"lltLX0aTXP", name:"Prerak"},
+user010:{password:"JEIBPrBpAj", name:"Riddhi"},
+user011:{password:"dIwmBesG6P", name:"Rohan"},
+user012:{password:"Ss8bDRtey0", name:"Shefali"},
+user013:{password:"h9T6bZnNmr", name:"Twinkle"}
+
+};
+
+
+// SAMPLE DATA
+let projects = [
+
+{
+project:"iCar Automotive",
+associate:"Dipen",
+email:"wmg.seoguru.8@gmail.com",
+clarity:"Not Sure",
+clarityOwner:"Not Sure",
+bing:"Not Sure",
+bingOwner:"Not Sure",
+gtm:"Not Sure",
+gtmOwner:"Not Sure"
+}
+
+];
+
+
+// LOGIN
+function login(){
+
+let id=document.getElementById("userid").value;
+let pass=document.getElementById("password").value;
+
+if(users[id] && users[id].password===pass){
+
+localStorage.user=id;
+
+showDashboard();
+
+}else{
+
+alert("Invalid login");
+
+}
+
+}
+
+
+// SHOW DASHBOARD
+function showDashboard(){
+
+document.getElementById("login").classList.add("hidden");
+document.getElementById("dashboard").classList.remove("hidden");
+
+document.querySelector(".logout").classList.remove("hidden");
+
+let user=localStorage.user;
+
+document.getElementById("welcome").innerText="Welcome "+users[user].name;
+
+loadTable();
+
+}
+
+
+// LOAD TABLE
+function loadTable(){
+
+let tbody=document.querySelector("#table tbody");
+
+tbody.innerHTML="";
+
+let user=localStorage.user;
+
+projects.forEach((p,index)=>{
+
+if(user!="admin" && p.associate!=users[user].name) return;
+
+let row=document.createElement("tr");
+
+row.innerHTML=`
+
+<td>${p.project}</td>
+
+<td>${p.email}</td>
+
+<td>${dropdown(index,"clarity",["Yes","No","Not Sure"])}</td>
+
+<td>${dropdown(index,"clarityOwner",["Already Given","Done","I can’t give","I not have that project"])}</td>
+
+<td>${dropdown(index,"bing",["Yes","No","Not Sure"])}</td>
+
+<td>${dropdown(index,"bingOwner",["Already Given","Done","I can’t give","I not have that project"])}</td>
+
+<td>${dropdown(index,"gtm",["Yes","No","Not Sure"])}</td>
+
+<td>${dropdown(index,"gtmOwner",["Already Given","Done","I can’t give","I not have that project"])}</td>
+
+`;
+
+tbody.appendChild(row);
+
+});
+
+}
+
+
+// DROPDOWN
+function dropdown(index,field,options){
+
+let html=`<select onchange="update(${index},'${field}',this.value)">`;
+
+options.forEach(o=>{
+
+html+=`<option ${projects[index][field]==o?"selected":""}>${o}</option>`;
+
+});
+
+html+="</select>";
+
+return html;
+
+}
+
+
+// UPDATE
+function update(index,field,value){
+
+projects[index][field]=value;
+
+localStorage.projects=JSON.stringify(projects);
+
+}
+
+
+// LOGOUT
+function logout(){
+
+localStorage.clear();
+location.reload();
+
+}
+
+
+// AUTO LOAD
+if(localStorage.projects){
+
+projects=JSON.parse(localStorage.projects);
+
+}
+
+if(localStorage.user){
+
+showDashboard();
+
+}
+
+</script>
+
+</body>
+</html>

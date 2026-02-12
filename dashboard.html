@@ -315,13 +315,15 @@ tbody.appendChild(row);
 
 function dropdown(index,field,options){
 
-let value=projects[index][field]||"Not Sure";
+let value = projects[index][field] || "";
 
 let html=`<select onchange="update(${index},'${field}',this.value)">`;
 
+html+=`<option value="">-- Select --</option>`;
+
 options.forEach(opt=>{
 
-html+=`<option ${value==opt?"selected":""}>${opt}</option>`;
+html+=`<option value="${opt}" ${value===opt?"selected":""}>${opt}</option>`;
 
 });
 

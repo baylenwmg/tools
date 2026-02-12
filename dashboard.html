@@ -40,41 +40,42 @@ border-radius:8px;
 box-shadow:0 0 10px rgba(0,0,0,0.15);
 }
 
-input{
-width:100%;
-padding:10px;
-margin:5px 0;
+input, select{
+padding:8px;
+margin:5px;
 }
 
 button{
 background:#2ea44f;
 color:white;
 border:none;
-padding:10px;
+padding:8px 15px;
 cursor:pointer;
-width:100%;
+border-radius:4px;
 }
 
 table{
 width:100%;
 background:white;
 border-collapse:collapse;
+margin-top:10px;
 }
 
 th, td{
 padding:8px;
 border:1px solid #ddd;
 font-size:14px;
-text-align:left;
-}
-
-select{
-width:100%;
-padding:4px;
 }
 
 .hidden{
 display:none;
+}
+
+.controls{
+background:white;
+padding:10px;
+border-radius:6px;
+margin-bottom:10px;
 }
 
 </style>
@@ -84,11 +85,8 @@ display:none;
 <body>
 
 <div class="header">
-
 Project Dashboard
-
 <span class="logout hidden" onclick="logout()">Logout</span>
-
 </div>
 
 
@@ -98,8 +96,8 @@ Project Dashboard
 
 <h3>Login</h3>
 
-<input id="userid" placeholder="Login ID">
-<input id="password" type="password" placeholder="Password">
+<input id="userid" placeholder="Login ID"><br>
+<input id="password" type="password" placeholder="Password"><br>
 
 <button onclick="login()">Login</button>
 
@@ -112,37 +110,14 @@ Project Dashboard
 
 <h3 id="welcome"></h3>
 
-<table>
 
-<thead>
+<!-- ADMIN CONTROLS -->
 
-<tr>
+<div id="adminControls" class="controls hidden">
 
-<th>Project Name</th>
-<th>Transfer Ownership Email</th>
+<input type="text" id="searchBox" placeholder="Search Project..." onkeyup="filterProjects()">
 
-<th>Clarity Setup</th>
-<th>Clarity Ownership Access Shared</th>
-
-<th>Bing Setup</th>
-<th>Bing Ownership Access Shared</th>
-
-<th>GTM Access</th>
-<th>GTM Ownership Access Shared</th>
-
-</tr>
-
-</thead>
-
-<tbody id="tbody"></tbody>
-
-<!-- CONTROLS PANEL -->
-
-<div id="controls" style="background:white;padding:15px;margin-bottom:15px;border-radius:8px;">
-
-<input type="text" id="searchBox" placeholder="Search Project..." onkeyup="filterProjects()" style="width:200px;margin-right:10px;">
-
-<select id="associateFilter" onchange="filterProjects()" style="width:200px;">
+<select id="associateFilter" onchange="filterProjects()">
 <option value="">All Associates</option>
 </select>
 
@@ -152,6 +127,29 @@ Completion: <b id="completionPercent">0%</b>
 
 </div>
 
+
+<table>
+
+<thead>
+<tr>
+
+<th>Project Name</th>
+<th>Transfer Ownership Email</th>
+
+<th>Clarity Setup</th>
+<th>Clarity Ownership</th>
+
+<th>Bing Setup</th>
+<th>Bing Ownership</th>
+
+<th>GTM Access</th>
+<th>GTM Ownership</th>
+
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
 </table>
 
 </div>
@@ -160,13 +158,12 @@ Completion: <b id="completionPercent">0%</b>
 <script>
 
 
-// YOUR GOOGLE SCRIPT API
-const API = "https://script.google.com/macros/s/AKfycbyoHEPOPy89C0ST9KjYBMDPFmJoUVu0EE0i6A0Q8vCPxYi4kPzU07ECJvYaBmhS_qiY/exec";
+// GOOGLE SHEET API
+const API="https://script.google.com/macros/s/AKfycbyoHEPOPy89C0ST9KjYBMDPFmJoUVu0EE0i6A0Q8vCPxYi4kPzU07ECJvYaBmhS_qiY/exec";
 
 
-// USER LOGIN DATABASE
-
-const users = {
+// USERS
+const users={
 
 admin:{password:"admin@123",name:"Admin"},
 
@@ -187,27 +184,23 @@ user013:{password:"h9T6bZnNmr",name:"Twinkle"}
 };
 
 
-let projects = [];
+let projects=[];
+let filteredProjects=[];
 
 
-// LOGIN FUNCTION
+// LOGIN
 
 function login(){
 
-let id=document.getElementById("userid").value;
-let pass=document.getElementById("password").value;
+let id=userid.value;
+let pass=password.value;
 
-if(users[id] && users[id].password===pass){
+if(users[id] && users[id].password==pass){
 
 localStorage.user=id;
-
 showDashboard();
 
-}else{
-
-alert("Invalid Login");
-
-}
+}else alert("Invalid login");
 
 }
 
@@ -216,29 +209,37 @@ alert("Invalid Login");
 
 async function showDashboard(){
 
-document.getElementById("login").classList.add("hidden");
-document.getElementById("dashboard").classList.remove("hidden");
+login.classList.add("hidden");
+dashboard.classList.remove("hidden");
 
 document.querySelector(".logout").classList.remove("hidden");
 
 let user=localStorage.user;
 
-document.getElementById("welcome").innerText="Welcome "+users[user].name;
+welcome.innerText="Welcome "+users[user].name;
+
+if(user=="admin")
+adminControls.classList.remove("hidden");
 
 await loadData();
 
 }
 
 
-// LOAD DATA FROM GOOGLE SHEET
+// LOAD DATA
 
 async function loadData(){
 
-const res = await fetch(API);
+let res=await fetch(API);
+projects=await res.json();
 
-projects = await res.json();
+filteredProjects=[...projects];
+
+if(localStorage.user=="admin")
+loadAssociateFilter();
 
 renderTable();
+calculateCompletion();
 
 }
 
@@ -247,19 +248,22 @@ renderTable();
 
 function renderTable(){
 
-const tbody=document.getElementById("tbody");
-
 tbody.innerHTML="";
 
 let user=localStorage.user;
 
-projects.forEach((p,index)=>{
+filteredProjects.forEach((p)=>{
 
-if(user!="admin" && p["Associate Name"]!=users[user].name) return;
+if(
+user!="admin" &&
+p["Associate Name"]?.trim().toLowerCase()!=users[user].name.toLowerCase()
+) return;
 
-let row=document.createElement("tr");
+let index=projects.indexOf(p);
 
-row.innerHTML=`
+tbody.innerHTML+=`
+
+<tr>
 
 <td>${p["Project Name"]}</td>
 
@@ -277,165 +281,6 @@ row.innerHTML=`
 
 <td>${dropdown(index,"GTM Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
 
-`;
-
-tbody.appendChild(row);
-
-});
-
-}
-
-
-// DROPDOWN GENERATOR
-
-function dropdown(index,field,options){
-
-let value=projects[index][field] || "Not Sure";
-
-let html=`<select onchange="update(${index},'${field}',this.value)">`;
-
-options.forEach(opt=>{
-
-html+=`<option ${value==opt?"selected":""}>${opt}</option>`;
-
-});
-
-html+="</select>";
-
-return html;
-
-}
-
-
-// UPDATE GOOGLE SHEET
-
-async function update(index,field,value){
-
-projects[index][field]=value;
-
-await fetch(API,{
-
-method:"POST",
-
-body:JSON.stringify(projects[index])
-
-});
-
-}
-
-
-// LOGOUT
-
-function logout(){
-
-localStorage.clear();
-location.reload();
-
-}
-
-
-// AUTO LOGIN
-
-if(localStorage.user){
-
-showDashboard();
-
-}
-
-
-</script>
-
-// EXTENSION CODE (SAFE ADDON)
-
-let filteredProjects=[];
-
-
-// LOAD ASSOCIATE FILTER
-
-function loadAssociateFilter(){
-
-let set=new Set();
-
-projects.forEach(p=>{
-
-if(p["Associate Name"])
-set.add(p["Associate Name"].trim());
-
-});
-
-let filter=document.getElementById("associateFilter");
-
-filter.innerHTML='<option value="">All Associates</option>';
-
-set.forEach(a=>{
-
-filter.innerHTML+=`<option>${a}</option>`;
-
-});
-
-}
-
-
-// FILTER PROJECTS
-
-function filterProjects(){
-
-let search=document.getElementById("searchBox").value.toLowerCase();
-
-let associate=document.getElementById("associateFilter").value;
-
-filteredProjects=projects.filter(p=>{
-
-let matchSearch=!search || p["Project Name"]?.toLowerCase().includes(search);
-
-let matchAssociate=!associate || p["Associate Name"]?.trim()==associate;
-
-return matchSearch && matchAssociate;
-
-});
-
-renderFilteredTable();
-
-calculateCompletion();
-
-}
-
-
-// RENDER FILTERED TABLE
-
-function renderFilteredTable(){
-
-tbody.innerHTML="";
-
-let user=localStorage.user;
-
-filteredProjects.forEach((p,i)=>{
-
-if(
-user!="admin" &&
-p["Associate Name"]?.trim().toLowerCase() !== users[user].name.trim().toLowerCase()
-) return;
-
-tbody.innerHTML+=`
-
-<tr>
-
-<td>${p["Project Name"]}</td>
-
-<td>${p["Transfer Ownership Email"]}</td>
-
-<td>${dropdown(projects.indexOf(p),"Clarity Setup",["Yes","No","Not Sure"])}</td>
-
-<td>${dropdown(projects.indexOf(p),"Clarity Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
-
-<td>${dropdown(projects.indexOf(p),"Bing Setup",["Yes","No","Not Sure"])}</td>
-
-<td>${dropdown(projects.indexOf(p),"Bing Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
-
-<td>${dropdown(projects.indexOf(p),"GTM Access",["Yes","No","Not Sure"])}</td>
-
-<td>${dropdown(projects.indexOf(p),"GTM Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
-
 </tr>
 
 `;
@@ -445,57 +290,112 @@ tbody.innerHTML+=`
 }
 
 
-// COMPLETION %
+// DROPDOWN
 
-function calculateCompletion(){
+function dropdown(index,field,options){
 
-let user=localStorage.user;
+let value=projects[index][field]||"Not Sure";
 
-let total=0;
+let html=`<select onchange="update(${index},'${field}',this.value)">`;
 
-let done=0;
-
-projects.forEach(p=>{
-
-if(
-user!="admin" &&
-p["Associate Name"]?.trim().toLowerCase() !== users[user].name.trim().toLowerCase()
-) return;
-
-total++;
-
-if(
-p["Clarity Setup"]=="Yes" &&
-p["Bing Setup"]=="Yes" &&
-p["GTM Access"]=="Yes"
-){
-done++;
-}
-
+options.forEach(o=>{
+html+=`<option ${value==o?"selected":""}>${o}</option>`;
 });
 
-let percent= total? Math.round((done/total)*100):0;
-
-document.getElementById("completionPercent").innerText=percent+"%";
+return html+"</select>";
 
 }
 
 
-// HOOK INTO EXISTING LOAD
+// UPDATE
 
-const originalLoadData=loadData;
+async function update(index,field,value){
 
-loadData=async function(){
+projects[index][field]=value;
 
-await originalLoadData();
-
-filteredProjects=[...projects];
-
-loadAssociateFilter();
+await fetch(API,{
+method:"POST",
+body:JSON.stringify(projects[index])
+});
 
 calculateCompletion();
 
-};
+}
+
+
+// FILTER
+
+function filterProjects(){
+
+let search=searchBox.value.toLowerCase();
+let associate=associateFilter.value;
+
+filteredProjects=projects.filter(p=>{
+
+let s=!search || p["Project Name"].toLowerCase().includes(search);
+let a=!associate || p["Associate Name"]==associate;
+
+return s && a;
+
+});
+
+renderTable();
+calculateCompletion();
+
+}
+
+
+// LOAD ASSOCIATE FILTER
+
+function loadAssociateFilter(){
+
+let set=new Set();
+
+projects.forEach(p=>set.add(p["Associate Name"]));
+
+associateFilter.innerHTML='<option value="">All Associates</option>';
+
+set.forEach(a=>{
+associateFilter.innerHTML+=`<option>${a}</option>`;
+});
+
+}
+
+
+// COMPLETION
+
+function calculateCompletion(){
+
+if(localStorage.user!="admin") return;
+
+let total=projects.length;
+let done=0;
+
+projects.forEach(p=>{
+if(p["Clarity Setup"]=="Yes" && p["Bing Setup"]=="Yes" && p["GTM Access"]=="Yes")
+done++;
+});
+
+completionPercent.innerText=Math.round((done/total)*100)+"%";
+
+}
+
+
+// LOGOUT
+
+function logout(){
+localStorage.clear();
+location.reload();
+}
+
+
+// AUTO LOGIN
+
+if(localStorage.user)
+showDashboard();
+
+
+</script>
 
 </body>
 </html>

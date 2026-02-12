@@ -154,6 +154,7 @@ Completion: <b id="completionPercent">0%</b>
 
 <th>GTM Access</th>
 <th>GTM Ownership Access Shared</th>
+<th>Previous Associate</th>
 
 </tr>
 
@@ -299,6 +300,8 @@ row.innerHTML=`
 
 <td>${dropdown(index,"GTM Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
 
+<td>${p["Previous Associate"] || ""}</td>
+
 `;
 
 tbody.appendChild(row);
@@ -409,6 +412,8 @@ tbody.innerHTML+=`
 <td>${dropdown(index,"GTM Access",["Yes","No","Not Sure"])}</td>
 
 <td>${dropdown(index,"GTM Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
+
+<td>${p["Previous Associate"] || ""}</td>
 
 </tr>
 

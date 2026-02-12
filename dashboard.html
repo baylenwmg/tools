@@ -136,6 +136,22 @@ Project Dashboard
 
 <tbody id="tbody"></tbody>
 
+<!-- CONTROLS PANEL -->
+
+<div id="controls" style="background:white;padding:15px;margin-bottom:15px;border-radius:8px;">
+
+<input type="text" id="searchBox" placeholder="Search Project..." onkeyup="filterProjects()" style="width:200px;margin-right:10px;">
+
+<select id="associateFilter" onchange="filterProjects()" style="width:200px;">
+<option value="">All Associates</option>
+</select>
+
+<span style="margin-left:20px;">
+Completion: <b id="completionPercent">0%</b>
+</span>
+
+</div>
+
 </table>
 
 </div>
@@ -328,6 +344,158 @@ showDashboard();
 
 
 </script>
+
+// EXTENSION CODE (SAFE ADDON)
+
+let filteredProjects=[];
+
+
+// LOAD ASSOCIATE FILTER
+
+function loadAssociateFilter(){
+
+let set=new Set();
+
+projects.forEach(p=>{
+
+if(p["Associate Name"])
+set.add(p["Associate Name"].trim());
+
+});
+
+let filter=document.getElementById("associateFilter");
+
+filter.innerHTML='<option value="">All Associates</option>';
+
+set.forEach(a=>{
+
+filter.innerHTML+=`<option>${a}</option>`;
+
+});
+
+}
+
+
+// FILTER PROJECTS
+
+function filterProjects(){
+
+let search=document.getElementById("searchBox").value.toLowerCase();
+
+let associate=document.getElementById("associateFilter").value;
+
+filteredProjects=projects.filter(p=>{
+
+let matchSearch=!search || p["Project Name"]?.toLowerCase().includes(search);
+
+let matchAssociate=!associate || p["Associate Name"]?.trim()==associate;
+
+return matchSearch && matchAssociate;
+
+});
+
+renderFilteredTable();
+
+calculateCompletion();
+
+}
+
+
+// RENDER FILTERED TABLE
+
+function renderFilteredTable(){
+
+tbody.innerHTML="";
+
+let user=localStorage.user;
+
+filteredProjects.forEach((p,i)=>{
+
+if(
+user!="admin" &&
+p["Associate Name"]?.trim().toLowerCase() !== users[user].name.trim().toLowerCase()
+) return;
+
+tbody.innerHTML+=`
+
+<tr>
+
+<td>${p["Project Name"]}</td>
+
+<td>${p["Transfer Ownership Email"]}</td>
+
+<td>${dropdown(projects.indexOf(p),"Clarity Setup",["Yes","No","Not Sure"])}</td>
+
+<td>${dropdown(projects.indexOf(p),"Clarity Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
+
+<td>${dropdown(projects.indexOf(p),"Bing Setup",["Yes","No","Not Sure"])}</td>
+
+<td>${dropdown(projects.indexOf(p),"Bing Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
+
+<td>${dropdown(projects.indexOf(p),"GTM Access",["Yes","No","Not Sure"])}</td>
+
+<td>${dropdown(projects.indexOf(p),"GTM Ownership Access Shared",["Already Given","Done","I can’t give","I not have that project"])}</td>
+
+</tr>
+
+`;
+
+});
+
+}
+
+
+// COMPLETION %
+
+function calculateCompletion(){
+
+let user=localStorage.user;
+
+let total=0;
+
+let done=0;
+
+projects.forEach(p=>{
+
+if(
+user!="admin" &&
+p["Associate Name"]?.trim().toLowerCase() !== users[user].name.trim().toLowerCase()
+) return;
+
+total++;
+
+if(
+p["Clarity Setup"]=="Yes" &&
+p["Bing Setup"]=="Yes" &&
+p["GTM Access"]=="Yes"
+){
+done++;
+}
+
+});
+
+let percent= total? Math.round((done/total)*100):0;
+
+document.getElementById("completionPercent").innerText=percent+"%";
+
+}
+
+
+// HOOK INTO EXISTING LOAD
+
+const originalLoadData=loadData;
+
+loadData=async function(){
+
+await originalLoadData();
+
+filteredProjects=[...projects];
+
+loadAssociateFilter();
+
+calculateCompletion();
+
+};
 
 </body>
 </html>

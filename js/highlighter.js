@@ -46,8 +46,10 @@ function clearExistingHighlights(root) {
  */
 function findMatches(text, list, type, matchesArray) {
     list.forEach(term => {
-        // \b ensures "Whole Word" only matching
-        const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, "gi");
+        if (!term || term.trim() === "") return;
+
+        // Find exact string matches anywhere in the text
+        const regex = new RegExp(escapeRegex(term), "gi");
         let m;
         while ((m = regex.exec(text)) !== null) {
             matchesArray.push({
@@ -57,6 +59,10 @@ function findMatches(text, list, type, matchesArray) {
                 text: m[0],
                 term: term // Track the original term for unused keyword analysis
             });
+            // Safety to prevent infinite loops on zero-length matches
+            if (m.index === regex.lastIndex) {
+                regex.lastIndex++;
+            }
         }
     });
 }
